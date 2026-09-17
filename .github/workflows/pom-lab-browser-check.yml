@@ -1,0 +1,47 @@
+name: POM Lab Browser Check
+on:
+  push:
+    branches: [shipmodule-pom-reference-lab]
+    paths:
+      - '.github/workflows/pom-lab-browser-check.yml'
+      - 'shipmodule-pom-lab/lab-512.js'
+      - 'shipmodule-pom-lab/tests/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pom-lab-browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser tooling
+        run: |
+          mkdir -p /tmp/pom-browser
+          cd /tmp/pom-browser
+          npm install --no-save --ignore-scripts three@0.180.0 playwright@1.55.0
+          npx playwright install --with-deps chromium
+          mkdir -p "$GITHUB_WORKSPACE/pom-validation/vendor"
+          cp node_modules/three/build/three.module.js node_modules/three/build/three.core.js "$GITHUB_WORKSPACE/pom-validation/vendor/"
+          cp node_modules/three/examples/jsm/controls/OrbitControls.js "$GITHUB_WORKSPACE/pom-validation/vendor/"
+      - name: Browser smoke test
+        env:
+          POM_PLAYWRIGHT_PATH: /tmp/pom-browser/node_modules/playwright/index.mjs
+        run: |
+          if [ -f shipmodule-pom-lab/tests/hosted-smoke.mjs ]; then
+            node shipmodule-pom-lab/tests/hosted-smoke.mjs
+          else
+            printf '%s\n' 'Browser dependencies prepared; 512 fixture test not yet installed.' > pom-validation/bootstrap.txt
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pom-lab-browser-evidence
+          path: pom-validation/
+          retention-days: 7
