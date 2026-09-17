@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const POM_PROGRAM_KEY = 'shipmodule-pom-decal-r180-v1:steps96:refine8';
+const POM_PROGRAM_KEY = 'shipmodule-pom-decal-r180-v2:steps96:refine8:stable-grazing';
 
 function pomDeclarations() {
   return /* glsl */`
@@ -10,6 +10,13 @@ function pomDeclarations() {
       uniform float pomMinSteps;
       uniform float pomMaxSteps;
       uniform float pomRefinementSteps;
+      uniform float pomGrazingFadeStart;
+      uniform float pomGrazingFadeEnd;
+      uniform float pomMaxUvOffset;
+
+      float samplePomDepth( vec2 uv, vec2 uvDx, vec2 uvDy ) {
+        return 1.0 - textureGrad( pomHeightMap, uv, uvDx, uvDy ).r;
+      }
 
       vec2 resolvePomDecalUv( vec2 baseUv ) {
         vec3 viewDir = normalize( vViewPosition );
@@ -17,42 +24,80 @@ function pomDeclarations() {
         vec3 dpdy = dFdy( vViewPosition );
         vec2 duvdx = dFdx( baseUv );
         vec2 duvdy = dFdy( baseUv );
-        vec3 tangent = normalize( dpdx * duvdy.y - dpdy * duvdx.y );
-        vec3 bitangent = normalize( -dpdx * duvdy.x + dpdy * duvdx.x );
+        float determinant = duvdx.x * duvdy.y - duvdx.y * duvdy.x;
+        if ( abs( determinant ) < 1e-8 ) return baseUv;
+
+        float inverseDeterminant = 1.0 / determinant;
+        vec3 tangent = normalize(
+          ( dpdx * duvdy.y - dpdy * duvdx.y ) * inverseDeterminant
+        );
+        vec3 bitangent = normalize(
+          ( -dpdx * duvdy.x + dpdy * duvdx.x ) * inverseDeterminant
+        );
         vec3 surfaceNormal = normalize( cross( tangent, bitangent ) );
+        if ( dot( surfaceNormal, viewDir ) < 0.0 ) {
+          bitangent = -bitangent;
+          surfaceNormal = -surfaceNormal;
+        }
+
         vec3 viewTangent = vec3(
           dot( viewDir, tangent ),
           dot( viewDir, bitangent ),
-          abs( dot( viewDir, surfaceNormal ) )
+          max( dot( viewDir, surfaceNormal ), 0.0 )
         );
+        float facing = clamp( viewTangent.z, 0.0, 1.0 );
+        float grazingFade = smoothstep(
+          pomGrazingFadeStart,
+          pomGrazingFadeEnd,
+          facing
+        );
+        if ( grazingFade <= 1e-4 || pomHeightScale <= 0.0 ) return baseUv;
 
-        float steps = mix(
-          pomMaxSteps,
-          pomMinSteps,
-          clamp( viewTangent.z, 0.0, 1.0 )
-        );
-        float stepDepth = 1.0 / max( steps, 1.0 );
-        vec2 stepUv = ( viewTangent.xy / max( viewTangent.z, 0.12 ) )
-          * pomHeightScale * stepDepth;
+        float steps = mix( pomMaxSteps, pomMinSteps, facing );
+        steps = max( steps, 1.0 );
+        float stepDepth = 1.0 / steps;
+        vec2 totalUvOffset = (
+          viewTangent.xy / max( facing, 0.12 )
+        ) * pomHeightScale * grazingFade;
+        float totalOffsetLength = length( totalUvOffset );
+        if ( totalOffsetLength > pomMaxUvOffset ) {
+          totalUvOffset *= pomMaxUvOffset / max( totalOffsetLength, 1e-6 );
+        }
+        vec2 stepUv = totalUvOffset / steps;
+
         vec2 currentUv = baseUv;
         float currentDepth = 0.0;
+        float sampledDepth = samplePomDepth( currentUv, duvdx, duvdy );
+        if ( sampledDepth <= 1e-5 ) return baseUv;
 
+        vec2 previousUv = currentUv;
+        float previousDepth = currentDepth;
+        bool bracketed = false;
         for ( int stepIndex = 0; stepIndex < 96; stepIndex++ ) {
           if ( float( stepIndex ) >= steps ) break;
-          if ( currentDepth >= 1.0 - texture2D( pomHeightMap, currentUv ).r ) break;
+          if ( currentDepth >= sampledDepth ) {
+            bracketed = true;
+            break;
+          }
+          previousUv = currentUv;
+          previousDepth = currentDepth;
           currentUv -= stepUv;
           currentDepth += stepDepth;
+          sampledDepth = samplePomDepth( currentUv, duvdx, duvdy );
         }
+        if ( currentDepth >= sampledDepth ) bracketed = true;
+        if ( !bracketed ) return currentUv;
 
-        vec2 beforeUv = currentUv + stepUv;
+        vec2 beforeUv = previousUv;
         vec2 afterUv = currentUv;
-        float beforeDepth = max( currentDepth - stepDepth, 0.0 );
+        float beforeDepth = previousDepth;
         float afterDepth = currentDepth;
         for ( int refineIndex = 0; refineIndex < 8; refineIndex++ ) {
           if ( float( refineIndex ) >= pomRefinementSteps ) break;
           vec2 middleUv = ( beforeUv + afterUv ) * 0.5;
           float middleDepth = ( beforeDepth + afterDepth ) * 0.5;
-          if ( middleDepth < 1.0 - texture2D( pomHeightMap, middleUv ).r ) {
+          float middleSurface = samplePomDepth( middleUv, duvdx, duvdy );
+          if ( middleDepth < middleSurface ) {
             beforeUv = middleUv;
             beforeDepth = middleDepth;
           } else {
@@ -71,7 +116,6 @@ function pomMapSetup() {
   return /* glsl */`
     #ifdef USE_MAP
       vec2 pomDecalUv = resolvePomDecalUv( vMapUv );
-      if ( any( lessThan( pomDecalUv, vec2( 0.0 ) ) ) || any( greaterThan( pomDecalUv, vec2( 1.0 ) ) ) ) discard;
       #define vMapUv pomDecalUv
       #define vNormalMapUv pomDecalUv
       #define vRoughnessMapUv pomDecalUv
@@ -110,6 +154,9 @@ export function enablePomDecalMaterial(material, {
   minSteps = 8,
   maxSteps = 48,
   refinementSteps = 4,
+  grazingFadeStart = 0.06,
+  grazingFadeEnd = 0.22,
+  maxUvOffset = 0.35,
 } = {}) {
   if (!heightMap) return material;
   const uniforms = {
@@ -118,9 +165,13 @@ export function enablePomDecalMaterial(material, {
     pomMinSteps: { value: minSteps },
     pomMaxSteps: { value: Math.min(maxSteps, 96) },
     pomRefinementSteps: { value: Math.min(refinementSteps, 8) },
+    pomGrazingFadeStart: { value: grazingFadeStart },
+    pomGrazingFadeEnd: { value: Math.max(grazingFadeEnd, grazingFadeStart + 0.001) },
+    pomMaxUvOffset: { value: Math.max(0.01, maxUvOffset) },
   };
   material.userData.pomUniforms = uniforms;
   material.userData.pomEnabled = true;
+  material.userData.pomStability = 'grazing-v2';
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.fragmentShader = shader.fragmentShader
@@ -138,6 +189,9 @@ export function updatePomDecalMaterial(material, {
   minSteps,
   maxSteps,
   refinementSteps,
+  grazingFadeStart,
+  grazingFadeEnd,
+  maxUvOffset,
 } = {}) {
   const uniforms = material?.userData?.pomUniforms;
   if (!uniforms) return;
@@ -146,4 +200,12 @@ export function updatePomDecalMaterial(material, {
   if (Number.isFinite(minSteps)) uniforms.pomMinSteps.value = minSteps;
   if (Number.isFinite(maxSteps)) uniforms.pomMaxSteps.value = Math.min(maxSteps, 96);
   if (Number.isFinite(refinementSteps)) uniforms.pomRefinementSteps.value = Math.min(refinementSteps, 8);
+  if (Number.isFinite(grazingFadeStart)) uniforms.pomGrazingFadeStart.value = grazingFadeStart;
+  if (Number.isFinite(grazingFadeEnd)) {
+    uniforms.pomGrazingFadeEnd.value = Math.max(
+      grazingFadeEnd,
+      uniforms.pomGrazingFadeStart.value + 0.001,
+    );
+  }
+  if (Number.isFinite(maxUvOffset)) uniforms.pomMaxUvOffset.value = Math.max(0.01, maxUvOffset);
 }
