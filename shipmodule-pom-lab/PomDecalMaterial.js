@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const POM_PROGRAM_KEY = 'shipmodule-pom-decal-r180-v2:steps96:refine8:stable-grazing';
+const POM_PROGRAM_KEY = 'shipmodule-pom-decal-r180-v3:steps96:refine8:view-frame-sign';
 
 function pomDeclarations() {
   return /* glsl */`
@@ -15,13 +15,18 @@ function pomDeclarations() {
       uniform float pomMaxUvOffset;
 
       float samplePomDepth( vec2 uv, vec2 uvDx, vec2 uvDy ) {
+        // Reference convention: white = high, black = deep.
         return 1.0 - textureGrad( pomHeightMap, uv, uvDx, uvDy ).r;
       }
 
       vec2 resolvePomDecalUv( vec2 baseUv ) {
+        // vViewPosition is -mvPosition. Use its direction for the camera ray,
+        // but negate it before taking surface derivatives; otherwise the
+        // tangent/bitangent frame reverses the UV ray and inverts the relief.
         vec3 viewDir = normalize( vViewPosition );
-        vec3 dpdx = dFdx( vViewPosition );
-        vec3 dpdy = dFdy( vViewPosition );
+        vec3 surfacePositionView = -vViewPosition;
+        vec3 dpdx = dFdx( surfacePositionView );
+        vec3 dpdy = dFdy( surfacePositionView );
         vec2 duvdx = dFdx( baseUv );
         vec2 duvdy = dFdy( baseUv );
         float determinant = duvdx.x * duvdy.y - duvdx.y * duvdy.x;
@@ -171,7 +176,8 @@ export function enablePomDecalMaterial(material, {
   };
   material.userData.pomUniforms = uniforms;
   material.userData.pomEnabled = true;
-  material.userData.pomStability = 'grazing-v2';
+  material.userData.pomStability = 'view-frame-sign-v3';
+  material.userData.pomHeightConvention = 'WHITE_HIGH_BLACK_LOW';
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.fragmentShader = shader.fragmentShader
