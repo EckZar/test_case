@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "sourceCommit": "8f58e96f799e590eeb301ea7771f655d8f767d8a",
+  "sourceCommit": "ba87e076052dfb1bc2ceee2db1a7278925ee5e1a",
   "scope": "Isolated hosted lab, Three.js 0.180.0, real production PomDecalMaterial",
   "tests": [
     {
