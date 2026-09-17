@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "sourceCommit": "ba87e076052dfb1bc2ceee2db1a7278925ee5e1a",
+  "sourceCommit": "192e6bdcd71c1f06a871b814379ed287c29aaee7",
   "scope": "Isolated hosted lab, Three.js 0.180.0, real production PomDecalMaterial",
   "tests": [
     {
@@ -36,57 +36,62 @@
           "verified": true
         }
       },
-      "key": "shipmodule-pom-decal-r180-v3:steps96:refine8:view-frame-sign",
+      "key": "shipmodule-pom-decal-r180-v4:steps128:refine8:asymmetric-relief",
       "webgl": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
       "heightSource": "semantic-reconstruction-v1"
     },
     {
       "name": "Render front",
       "passed": true,
-      "width": 1140,
-      "height": 960,
       "min": 0,
-      "max": 225,
-      "variance": 4373.0360378941905,
+      "max": 223,
+      "variance": 4335.5064995228195,
+      "hash": 322499493,
+      "width": 1110,
+      "height": 960,
       "glError": 0
     },
     {
       "name": "Render oblique",
       "passed": true,
-      "width": 1140,
-      "height": 960,
       "min": 0,
-      "max": 226,
-      "variance": 4174.203612775914,
+      "max": 222,
+      "variance": 4171.848281972498,
+      "hash": 2222815031,
+      "width": 1110,
+      "height": 960,
       "glError": 0
     },
     {
       "name": "Render grazing",
       "passed": true,
-      "width": 1140,
-      "height": 960,
       "min": 0,
-      "max": 220,
-      "variance": 2001.753303733583,
+      "max": 219,
+      "variance": 1990.718938478086,
+      "hash": 2600372182,
+      "width": 1110,
+      "height": 960,
       "glError": 0
     },
     {
       "name": "Height 0 -> 0.06 changes rendered pixels",
       "passed": true,
       "zero": {
-        "width": 1140,
+        "min": 3,
+        "max": 210,
+        "variance": 4119.487484915941,
+        "hash": 3565195673,
+        "width": 1110,
         "height": 960,
-        "min": 0,
-        "max": 228,
-        "variance": 4142.881339345926,
         "glError": 0
       },
       "deep": {
-        "width": 1140,
-        "height": 960,
         "min": 0,
-        "max": 222,
-        "variance": 4213.454524864124,
+        "max": 226,
+        "variance": 4257.731721038237,
+        "hash": 3369641960,
+        "width": 1110,
+        "height": 960,
         "glError": 0
       }
     },
