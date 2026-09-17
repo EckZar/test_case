@@ -1,0 +1,1 @@
+{"schema":1,"purpose":"Run the final 512 build against the complete page resource tree, including its favicon.","requiredResult":"The workflow may publish only after texture checksums, shader compilation, nonblank frames and POM response checks pass."}
