@@ -39,7 +39,7 @@ const stats = {
   triangles: document.querySelector('#triangles'),
 };
 
-const number = (element) => Number(element.value);
+const number = (el) => Number(el.value);
 
 function updateLabels() {
   out.height.textContent = number(ui.height).toFixed(3);
@@ -55,7 +55,14 @@ function setStatus(message, error = false) {
   status.classList.toggle('error', error);
 }
 
-function configureTexture(texture, colorSpace = THREE.NoColorSpace) {
+function decodeBase64Bytes(encoded) {
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function configure(texture, colorSpace = THREE.NoColorSpace) {
   texture.colorSpace = colorSpace;
   texture.wrapS = THREE.ClampToEdgeWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
@@ -67,55 +74,79 @@ function configureTexture(texture, colorSpace = THREE.NoColorSpace) {
   return texture;
 }
 
-function solidTexture(r, g, b, a = 255) {
-  const texture = new THREE.DataTexture(
-    new Uint8Array([r, g, b, a]),
-    1,
-    1,
-    THREE.RGBAFormat,
+function makeDataTextures() {
+  const size = P07_HATCH_FIXTURE.resolution;
+  const rgba = decodeBase64Bytes(P07_HATCH_FIXTURE.baseColorRGBA);
+  const heightR = decodeBase64Bytes(P07_HATCH_FIXTURE.heightR);
+
+  if (rgba.length !== size * size * 4) {
+    throw new Error(`BaseColor byte length mismatch: ${rgba.length}`);
+  }
+  if (heightR.length !== size * size) {
+    throw new Error(`Height byte length mismatch: ${heightR.length}`);
+  }
+
+  const baseColor = configure(
+    new THREE.DataTexture(rgba, size, size, THREE.RGBAFormat, THREE.UnsignedByteType),
+    THREE.SRGBColorSpace,
   );
-  texture.needsUpdate = true;
-  texture.colorSpace = THREE.NoColorSpace;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  return texture;
-}
 
-async function loadEmbeddedFixture() {
-  const loader = new THREE.TextureLoader();
-  const [baseColor, heightMap] = await Promise.all([
-    loader.loadAsync(P07_HATCH_FIXTURE.baseColor),
-    loader.loadAsync(P07_HATCH_FIXTURE.height),
-  ]);
+  const heightRGBA = new Uint8Array(size * size * 4);
+  for (let i = 0; i < heightR.length; i += 1) {
+    const o = i * 4;
+    const v = heightR[i];
+    heightRGBA[o] = v;
+    heightRGBA[o + 1] = v;
+    heightRGBA[o + 2] = v;
+    heightRGBA[o + 3] = 255;
+  }
+  const heightMap = configure(
+    new THREE.DataTexture(heightRGBA, size, size, THREE.RGBAFormat, THREE.UnsignedByteType),
+  );
 
-  configureTexture(baseColor, THREE.SRGBColorSpace);
-  configureTexture(heightMap, THREE.NoColorSpace);
+  // Derive OpenGL tangent-space normal directly from the same height array.
+  const normalRGBA = new Uint8Array(size * size * 4);
+  const sample = (x, y) => {
+    const px = Math.max(0, Math.min(size - 1, x));
+    const py = Math.max(0, Math.min(size - 1, y));
+    return heightR[py * size + px] / 255;
+  };
+  const strength = size * 0.035;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      let nx = -(sample(x + 1, y) - sample(x - 1, y)) * strength;
+      let ny = -(sample(x, y + 1) - sample(x, y - 1)) * strength;
+      const len = Math.hypot(nx, ny, 1) || 1;
+      nx /= len;
+      ny /= len;
+      const nz = 1 / len;
+      const o = (y * size + x) * 4;
+      normalRGBA[o] = Math.round((nx * 0.5 + 0.5) * 255);
+      normalRGBA[o + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+      normalRGBA[o + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+      normalRGBA[o + 3] = 255;
+    }
+  }
+  const normalMap = configure(
+    new THREE.DataTexture(normalRGBA, size, size, THREE.RGBAFormat, THREE.UnsignedByteType),
+  );
 
-  const normalMap = solidTexture(128, 128, 255, 255);
-  const orm = solidTexture(255, 190, 32, 255);
-  const emissive = solidTexture(0, 0, 0, 255);
+  const orm = configure(new THREE.DataTexture(new Uint8Array([255, 190, 16, 255]), 1, 1, THREE.RGBAFormat));
+  const emissive = configure(new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, THREE.RGBAFormat));
 
   return {
-    label: P07_HATCH_FIXTURE.label,
-    resolution: P07_HATCH_FIXTURE.resolution,
-    heightConvention: P07_HATCH_FIXTURE.heightConvention,
     baseColor,
     heightMap,
     normalMap,
     orm,
     emissive,
     dispose() {
-      [baseColor, heightMap, normalMap, orm, emissive].forEach((texture) => texture.dispose());
+      [baseColor, heightMap, normalMap, orm, emissive].forEach((t) => t.dispose());
     },
   };
 }
 
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  antialias: true,
-  alpha: false,
-  powerPreference: 'high-performance',
-});
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -123,7 +154,6 @@ renderer.toneMappingExposure = 1.0;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x090d12);
-
 const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 100);
 camera.position.set(0, 0.15, 6.5);
 
@@ -136,8 +166,7 @@ controls.maxDistance = 11;
 
 scene.add(new THREE.HemisphereLight(0xb7d0ee, 0x11151c, 1.05));
 const keyLight = new THREE.DirectionalLight(0xffffff, 3.8);
-scene.add(keyLight);
-scene.add(keyLight.target);
+scene.add(keyLight, keyLight.target);
 
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(12, 7),
@@ -151,10 +180,7 @@ const dividerGeometry = new THREE.BufferGeometry().setFromPoints([
   new THREE.Vector3(0, -1.42, 0.13),
   new THREE.Vector3(0, 1.42, 0.13),
 ]);
-scene.add(new THREE.Line(
-  dividerGeometry,
-  new THREE.LineBasicMaterial({ color: 0x38516c, transparent: true, opacity: 0.6 }),
-));
+scene.add(new THREE.Line(dividerGeometry, new THREE.LineBasicMaterial({ color: 0x38516c, transparent: true, opacity: 0.6 })));
 
 let fixture = null;
 let flatMaterial = null;
@@ -175,12 +201,9 @@ function createMaterial({ pom = false } = {}) {
     orm: fixture.orm,
     emissive: fixture.emissive,
   });
-
-  // The P-07 hosted test does not need alpha cutout to validate POM.
-  // Force the planes opaque so a bad/empty alpha channel cannot hide geometry.
   material.transparent = false;
-  material.opacity = 1.0;
-  material.alphaTest = 0.0;
+  material.alphaTest = 0;
+  material.opacity = 1;
   material.blending = THREE.NoBlending;
   material.depthTest = true;
   material.depthWrite = true;
@@ -188,10 +211,8 @@ function createMaterial({ pom = false } = {}) {
   material.side = THREE.DoubleSide;
   material.color.setHex(0xffffff);
   material.roughness = 0.74;
-  material.metalness = 0.08;
-  material.normalScale.setScalar(1.0);
-  material.needsUpdate = true;
-
+  material.metalness = 0.06;
+  material.normalScale.setScalar(1);
   if (pom) {
     enablePomDecalMaterial(material, {
       heightMap: fixture.heightMap,
@@ -204,17 +225,16 @@ function createMaterial({ pom = false } = {}) {
       maxUvOffset: 0.35,
     });
   }
+  material.needsUpdate = true;
   return material;
 }
 
 function updatePom() {
   if (!pomMaterial) return;
-  const minimum = Math.min(number(ui.minSteps), number(ui.maxSteps));
-  const maximum = Math.max(number(ui.minSteps), number(ui.maxSteps));
   updatePomDecalMaterial(pomMaterial, {
     heightScale: number(ui.height),
-    minSteps: minimum,
-    maxSteps: maximum,
+    minSteps: Math.min(number(ui.minSteps), number(ui.maxSteps)),
+    maxSteps: Math.max(number(ui.minSteps), number(ui.maxSteps)),
     refinementSteps: number(ui.refine),
   });
 }
@@ -260,18 +280,14 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-[ui.height, ui.minSteps, ui.maxSteps, ui.refine].forEach((element) => {
-  element.addEventListener('input', () => {
-    updateLabels();
-    updatePom();
-  });
-});
-[ui.az, ui.el].forEach((element) => {
-  element.addEventListener('input', () => {
-    updateLabels();
-    updateLight();
-  });
-});
+[ui.height, ui.minSteps, ui.maxSteps, ui.refine].forEach((element) => element.addEventListener('input', () => {
+  updateLabels();
+  updatePom();
+}));
+[ui.az, ui.el].forEach((element) => element.addEventListener('input', () => {
+  updateLabels();
+  updateLight();
+}));
 ui.front.addEventListener('click', () => setCamera(0, 0.15, 6.5));
 ui.grazing.addEventListener('click', () => setCamera(5.7, 0.15, 1.55));
 ui.reset.addEventListener('click', resetControls);
@@ -279,11 +295,10 @@ ui.reset.addEventListener('click', resetControls);
 updateLabels();
 updateLight();
 
-async function init() {
+function init() {
   try {
-    setStatus('Loading P-07 BaseColor + Height textures…');
-    fixture = await loadEmbeddedFixture();
-
+    setStatus('Building P-07 DataTextures directly from embedded bytes…');
+    fixture = makeDataTextures();
     flatMaterial = createMaterial({ pom: false });
     pomMaterial = createMaterial({ pom: true });
     flatMesh = new THREE.Mesh(panelGeometry(), flatMaterial);
@@ -291,11 +306,10 @@ async function init() {
     flatMesh.position.x = -1.55;
     pomMesh.position.x = 1.55;
     scene.add(flatMesh, pomMesh);
-
-    setStatus('Ready. P-07 planes are forced opaque; use Grazing to stress the ShipModule POM ray marcher.');
+    setStatus('Ready. P-07 uses DataTexture only: no image decode, no CORS, no Canvas2D.');
   } catch (error) {
     console.error(error);
-    setStatus(`Error: ${error?.message || error}`, true);
+    setStatus(`Error: ${error?.message || String(error)}`, true);
   }
 }
 init();
@@ -308,7 +322,6 @@ function animate(now) {
   controls.autoRotateSpeed = 0.7;
   controls.update();
   renderer.render(scene, camera);
-
   frames += 1;
   const elapsed = now - sampleStart;
   if (elapsed >= 500) {
