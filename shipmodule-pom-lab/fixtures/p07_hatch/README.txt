@@ -1,0 +1,1 @@
+P-07 hosted fixture assets. BaseColorAlpha.webp contains the cleaned BaseColor with transparent exterior. Height.webp uses WHITE_HIGH_BLACK_LOW and has the exterior normalized to white/high so it cannot become a false POM recess.
