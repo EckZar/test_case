@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "sourceCommit": "8f58e96f799e590eeb301ea7771f655d8f767d8a",
+  "scope": "Isolated hosted lab, Three.js 0.180.0, real production PomDecalMaterial",
+  "tests": [
+    {
+      "name": "512 texture integrity and production POM compile",
+      "passed": true,
+      "ready": true,
+      "errors": [],
+      "size": 512,
+      "maps": {
+        "base": {
+          "bytes": 1048576,
+          "sha256": "c634a242c95a4e34f9126eab7b7e3babde6dc343da0aeeddad979c8d79a29226",
+          "verified": true
+        },
+        "height": {
+          "bytes": 262144,
+          "sha256": "b8505c26b6d32c877620490d877ef6926ec9580c096df815b73281078bd4597d",
+          "verified": true
+        },
+        "normal": {
+          "bytes": 786432,
+          "sha256": "c4b645a5361203f0679973dada875dd1a1114ebcfe45ca982ec6588467fa6ef2",
+          "verified": true
+        },
+        "orm": {
+          "bytes": 786432,
+          "sha256": "f8fe5b838165153dbb061c5d9ad257840c05b17e0ef80505599fab023d4dfa3b",
+          "verified": true
+        },
+        "alpha": {
+          "bytes": 262144,
+          "sha256": "431356b2c569c13bfb6c40260d1002ad8f3495717df4e9565e9a77195fa6da20",
+          "verified": true
+        }
+      },
+      "key": "shipmodule-pom-decal-r180-v3:steps96:refine8:view-frame-sign",
+      "webgl": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+      "heightSource": "semantic-reconstruction-v1"
+    },
+    {
+      "name": "Render front",
+      "passed": true,
+      "width": 1140,
+      "height": 960,
+      "min": 0,
+      "max": 225,
+      "variance": 4373.0360378941905,
+      "glError": 0
+    },
+    {
+      "name": "Render oblique",
+      "passed": true,
+      "width": 1140,
+      "height": 960,
+      "min": 0,
+      "max": 226,
+      "variance": 4174.203612775914,
+      "glError": 0
+    },
+    {
+      "name": "Render grazing",
+      "passed": true,
+      "width": 1140,
+      "height": 960,
+      "min": 0,
+      "max": 220,
+      "variance": 2001.753303733583,
+      "glError": 0
+    },
+    {
+      "name": "Height 0 -> 0.06 changes rendered pixels",
+      "passed": true,
+      "zero": {
+        "width": 1140,
+        "height": 960,
+        "min": 0,
+        "max": 228,
+        "variance": 4142.881339345926,
+        "glError": 0
+      },
+      "deep": {
+        "width": 1140,
+        "height": 960,
+        "min": 0,
+        "max": 222,
+        "variance": 4213.454524864124,
+        "glError": 0
+      }
+    },
+    {
+      "name": "External alpha cutout",
+      "passed": true
+    }
+  ],
+  "consoleErrors": [],
+  "requestErrors": [],
+  "passed": true
+}

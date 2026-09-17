@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "size": 512,
+  "heightConvention": "WHITE_HIGH_BLACK_LOW",
+  "normalHeightScale": 0.02,
+  "heightSource": "semantic-reconstruction-v1",
+  "sourceColorSha256": "4e72321a24f8e05290ef48d31525723f7d2c766f4375a8699db936d939b6c7c6",
+  "maps": {
+    "base": {
+      "length": 1048576,
+      "sha256": "c634a242c95a4e34f9126eab7b7e3babde6dc343da0aeeddad979c8d79a29226"
+    },
+    "height": {
+      "length": 262144,
+      "sha256": "b8505c26b6d32c877620490d877ef6926ec9580c096df815b73281078bd4597d"
+    },
+    "normal": {
+      "length": 786432,
+      "sha256": "c4b645a5361203f0679973dada875dd1a1114ebcfe45ca982ec6588467fa6ef2"
+    },
+    "orm": {
+      "length": 786432,
+      "sha256": "f8fe5b838165153dbb061c5d9ad257840c05b17e0ef80505599fab023d4dfa3b"
+    },
+    "alpha": {
+      "length": 262144,
+      "sha256": "431356b2c569c13bfb6c40260d1002ad8f3495717df4e9565e9a77195fa6da20"
+    }
+  },
+  "limitations": [
+    "Height is an authored semantic reconstruction, not an exact bake from a source mesh.",
+    "POM does not change mesh topology or cast geometric silhouette shadows.",
+    "The runtime height field is 8-bit; the 16-bit authoring file is also supplied."
+  ]
+}
