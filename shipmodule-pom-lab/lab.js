@@ -82,8 +82,6 @@ function solidTexture(r, g, b, a = 255) {
 }
 
 async function loadEmbeddedFixture() {
-  // The P-07 source images are data: URLs contained in p07-fixture-data.js.
-  // They never touch Canvas2D, so getImageData/CORS tainting is impossible.
   const loader = new THREE.TextureLoader();
   const [baseColor, heightMap] = await Promise.all([
     loader.loadAsync(P07_HATCH_FIXTURE.baseColor),
@@ -93,11 +91,8 @@ async function loadEmbeddedFixture() {
   configureTexture(baseColor, THREE.SRGBColorSpace);
   configureTexture(heightMap, THREE.NoColorSpace);
 
-  // Hosted validation intentionally isolates the POM ray marcher. A neutral
-  // tangent-space normal prevents an independently generated normal map from
-  // masking or exaggerating height-field errors while we validate relief.
   const normalMap = solidTexture(128, 128, 255, 255);
-  const orm = solidTexture(255, 190, 32, 255); // AO=1, roughness~0.75, low metal.
+  const orm = solidTexture(255, 190, 32, 255);
   const emissive = solidTexture(0, 0, 0, 255);
 
   return {
@@ -181,13 +176,21 @@ function createMaterial({ pom = false } = {}) {
     emissive: fixture.emissive,
   });
 
-  material.transparent = true;
-  material.alphaTest = 0.025;
+  // The P-07 hosted test does not need alpha cutout to validate POM.
+  // Force the planes opaque so a bad/empty alpha channel cannot hide geometry.
+  material.transparent = false;
+  material.opacity = 1.0;
+  material.alphaTest = 0.0;
+  material.blending = THREE.NoBlending;
+  material.depthTest = true;
   material.depthWrite = true;
   material.polygonOffset = false;
+  material.side = THREE.DoubleSide;
+  material.color.setHex(0xffffff);
   material.roughness = 0.74;
   material.metalness = 0.08;
   material.normalScale.setScalar(1.0);
+  material.needsUpdate = true;
 
   if (pom) {
     enablePomDecalMaterial(material, {
@@ -278,7 +281,7 @@ updateLight();
 
 async function init() {
   try {
-    setStatus('Loading embedded P-07 BaseColor + Height directly into GPU textures…');
+    setStatus('Loading P-07 BaseColor + Height textures…');
     fixture = await loadEmbeddedFixture();
 
     flatMaterial = createMaterial({ pom: false });
@@ -289,7 +292,7 @@ async function init() {
     pomMesh.position.x = 1.55;
     scene.add(flatMesh, pomMesh);
 
-    setStatus('Ready. P-07 is running without Canvas2D pixel reads. Use Grazing to stress the ShipModule POM ray marcher.');
+    setStatus('Ready. P-07 planes are forced opaque; use Grazing to stress the ShipModule POM ray marcher.');
   } catch (error) {
     console.error(error);
     setStatus(`Error: ${error?.message || error}`, true);
