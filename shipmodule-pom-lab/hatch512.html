@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
+<title>ShipModule — P-07 POM 512</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#e6edf5;background:#10151d}*{box-sizing:border-box}body{margin:0}.shell{height:100dvh;display:grid;grid-template-columns:300px minmax(0,1fr)}aside{padding:22px;overflow:auto;border-right:1px solid #314153;background:#151d28}h1{font-size:25px;line-height:1.15;margin:8px 0 12px}h2{font-size:12px;letter-spacing:.06em;margin:22px 0 12px;color:#adc9e7}.eyebrow{color:#89b8e7;font:11px monospace;letter-spacing:.1em}.intro,.note{font-size:12px;line-height:1.6;color:#aebdce}.note{font-size:11px;color:#94a6bc}label.control{display:grid;grid-template-columns:1fr auto;font-size:12px;margin:16px 0 0;gap:6px}input[type=range]{grid-column:1/-1;width:100%;accent-color:#86b7e8}output{font-family:monospace;color:#b2d5f8}select,button{font:12px system-ui;color:#edf4fb;border:1px solid #405673;background:#202e40;border-radius:6px;padding:9px;cursor:pointer}select{width:100%;margin-top:7px}.buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:16px}button:hover{background:#2e425c}.check{display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-top:15px}.stats{font-size:12px;display:grid;grid-template-columns:1fr auto;gap:8px}.stats span:nth-child(even){font-family:monospace;color:#b2d5f8}a{color:#a4cef5}#view{position:relative;min-width:0;min-height:0}canvas{display:block;width:100%;height:100%;touch-action:none}.tag{position:absolute;top:18px;max-width:44%;padding:8px 12px;border:1px solid #536b87;border-radius:6px;background:#111a27e8;font:11px monospace;pointer-events:none}.left{left:18px}.right{left:calc(50% + 18px)}.divider{position:absolute;left:50%;height:100%;width:1px;background:#71839b40;pointer-events:none}#status{position:absolute;bottom:16px;left:16px;right:16px;max-height:30%;overflow:auto;margin:0;padding:11px 13px;border:1px solid #405571;border-radius:6px;background:#111a27e8;color:#c2d6ed;white-space:pre-wrap;font:12px/1.45 monospace}#status[data-state=error]{border-color:#bc6a65;color:#ffd0ca}#status[data-state=ready]{border-color:#648a7b}.badge{padding:4px 7px;background:#2d473f;border-radius:4px;color:#c2e8d6;display:inline-block;font:11px monospace}@media(max-width:800px){.shell{height:auto;grid-template-columns:1fr}aside{border-right:0}#view{height:72vh;min-height:480px}.tag{font-size:9px;max-width:44%;padding:6px}}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+<main class="shell">
+<aside>
+<div class="eyebrow">SHIPMODULE / POM TEST LAB</div><h1>P-07<br>Maintenance Hatch</h1><span class="badge">512 × 512</span>
+<p class="intro">Слева обычный материал с Normal. Справа тот же набор карт через <code>PomDecalMaterial</code> проекта. Камера и освещение двух видов одинаковы.</p>
+<h2>МАТЕРИАЛ</h2>
+<label class="control">Отображение<select id="mode"><option value="pbr">BaseColor + PBR</option><option value="clay">Нейтральный материал / рельеф</option><option value="height">Карта высот, без POM</option></select></label>
+<label class="check"><input id="cutout" type="checkbox">Маска внешнего контура</label>
+<h2>ГЛУБИНА POM</h2>
+<label class="control">Height Scale <output id="heightOut">0.020</output><input id="height" type="range" min="0" max="0.15" step="0.001" value="0.02"></label>
+<label class="control">Minimum Steps <output id="minOut">8</output><input id="minSteps" type="range" min="2" max="32" step="1" value="8"></label>
+<label class="control">Maximum Steps <output id="maxOut">64</output><input id="maxSteps" type="range" min="8" max="96" step="1" value="64"></label>
+<label class="control">Refinement <output id="refineOut">5</output><input id="refine" type="range" min="0" max="8" step="1" value="5"></label>
+<h2>КАМЕРА / СВЕТ</h2>
+<label class="control">Азимут света <output id="azOut">35°</output><input id="az" type="range" min="-80" max="80" step="1" value="35"></label>
+<label class="control">Высота света <output id="elOut">55°</output><input id="el" type="range" min="5" max="85" step="1" value="55"></label>
+<div class="buttons"><button id="front">Front</button><button id="oblique">3/4</button><button id="grazing">Grazing</button><button id="reset">Reset</button></div>
+<p class="note">Мышь: вращение и приближение. Параметры шейдера одинаковы во всех ракурсах; на почти касательном угле действует ограничение текущего POM проекта.</p>
+<h2>ПРОВЕРКА</h2><div class="stats"><span>Размер карт</span><span id="resolution">проверка…</span><span>Целостность</span><span id="integrity">проверка…</span><span>FPS</span><span id="fps">—</span></div>
+<p class="note">Белое — выше, чёрное — глубже. Height в этой версии — техническая реконструкция панелей и ниш по референсу, не точное запекание исходной 3D-модели. Normal рассчитана из той же Height. POM не меняет полигоны и геометрический силуэт.</p>
+<p class="note"><a href="./fixtures/p07_512_verified/manifest.json" target="_blank" rel="noopener">Манифест карт</a> · <a href="./index.html">Прежний стенд</a></p>
+</aside>
+<section id="view"><canvas id="canvas"></canvas><span class="tag left">NORMAL / PBR</span><span class="tag right">SHIPMODULE POM</span><span class="divider"></span><pre id="status" role="status">Загрузка модулей стенда…</pre></section>
+</main>
+<script type="module">
+try { await import('./lab-512.js'); } catch (error) { const s=document.getElementById('status');s.dataset.state='error';s.textContent='Не удалось запустить стенд: '+(error?.message||String(error));console.error(error); }
+</script>
+</body>
+</html>
