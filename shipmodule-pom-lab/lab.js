@@ -10,7 +10,31 @@ const canvas = document.querySelector('#canvas');
 const view = document.querySelector('#view');
 const status = document.querySelector('#status');
 
+const FIXTURES = Object.freeze({
+  p07: {
+    id: 'p07',
+    label: 'P-07 Maintenance Hatch',
+    source: 'ShipModule P-07 authored fixture',
+    baseColorUrl: './fixtures/p07_hatch/BaseColorAlpha.webp',
+    heightUrl: './fixtures/p07_hatch/Height.webp',
+    defaultHeightScale: 0.035,
+    repeatable: false,
+    hasAlpha: true,
+    heightConvention: 'WHITE_HIGH_BLACK_LOW',
+  },
+  rock: {
+    id: 'rock',
+    label: 'Rock Wall 10',
+    source: 'mfagerlund / rock_wall_10',
+    defaultHeightScale: 0.12,
+    repeatable: true,
+    hasAlpha: false,
+    heightConvention: 'WHITE_HIGH_BLACK_LOW',
+  },
+});
+
 const ui = {
+  fixtureSelect: document.querySelector('#fixtureSelect'),
   height: document.querySelector('#height'),
   minSteps: document.querySelector('#minSteps'),
   maxSteps: document.querySelector('#maxSteps'),
@@ -37,12 +61,17 @@ const out = {
 const stats = {
   fixture: document.querySelector('#fixture'),
   resolution: document.querySelector('#resolution'),
+  heightConvention: document.querySelector('#heightConvention'),
   fps: document.querySelector('#fps'),
   calls: document.querySelector('#calls'),
   triangles: document.querySelector('#triangles'),
 };
 
 const number = (element) => Number(element.value);
+
+function activeFixtureDefinition() {
+  return FIXTURES[ui.fixtureSelect.value] || FIXTURES.p07;
+}
 
 function updateLabels() {
   out.height.textContent = number(ui.height).toFixed(3);
@@ -58,7 +87,7 @@ function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Unable to decode the rock_wall_10 reference image.'));
+    image.onerror = () => reject(new Error(`Unable to decode fixture image: ${src}`));
     image.src = src;
   });
 }
@@ -68,23 +97,30 @@ function pixelsFrom(image, size) {
   surface.width = size;
   surface.height = size;
   const context = surface.getContext('2d', { willReadFrequently: true });
+  context.clearRect(0, 0, size, size);
   context.drawImage(image, 0, 0, size, size);
-  return { surface, pixels: context.getImageData(0, 0, size, size) };
+  return { surface, context, pixels: context.getImageData(0, 0, size, size) };
 }
 
-function makeBaseColorTexture(surface) {
-  const texture = new THREE.CanvasTexture(surface);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.flipY = false;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = 8;
+function setTextureAddressing(texture, repeatable) {
+  texture.wrapS = repeatable ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+  texture.wrapT = repeatable ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+  texture.repeat.set(1, 1);
+  texture.needsUpdate = true;
   return texture;
 }
 
-function makeHeightTexture(imageData, size) {
+function makeBaseColorTexture(surface, repeatable) {
+  const texture = new THREE.CanvasTexture(surface);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.flipY = false;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 8;
+  return setTextureAddressing(texture, repeatable);
+}
+
+function makeHeightTexture(imageData, size, repeatable) {
   const data = new Uint8Array(size * size * 4);
   for (let i = 0; i < size * size; i += 1) {
     const value = imageData.data[i * 4];
@@ -98,20 +134,18 @@ function makeHeightTexture(imageData, size) {
   texture.needsUpdate = true;
   texture.colorSpace = THREE.NoColorSpace;
   texture.flipY = false;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
-  return texture;
+  return setTextureAddressing(texture, repeatable);
 }
 
-function makeNormalTexture(heightPixels, size) {
+function makeNormalTexture(heightPixels, size, repeatable) {
   const source = heightPixels.data;
   const data = new Uint8Array(size * size * 4);
   const h = (x, y) => {
-    const px = (x + size) % size;
-    const py = (y + size) % size;
+    const px = repeatable ? (x + size) % size : Math.max(0, Math.min(size - 1, x));
+    const py = repeatable ? (y + size) % size : Math.max(0, Math.min(size - 1, y));
     return source[(py * size + px) * 4] / 255;
   };
   const bump = 0.10 * size * 0.5;
@@ -134,45 +168,99 @@ function makeNormalTexture(heightPixels, size) {
   texture.needsUpdate = true;
   texture.colorSpace = THREE.NoColorSpace;
   texture.flipY = false;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
-  return texture;
+  return setTextureAddressing(texture, repeatable);
 }
 
 function solidTexture(r, g, b, a = 255) {
   const texture = new THREE.DataTexture(new Uint8Array([r, g, b, a]), 1, 1, THREE.RGBAFormat);
   texture.needsUpdate = true;
   texture.colorSpace = THREE.NoColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
   return texture;
 }
 
-async function createReferenceFixture() {
-  const source = window.ROCKWALL;
-  if (!source?.albedo || !source?.height) {
-    throw new Error('Pinned mfagerlund ROCKWALL fixture was not loaded.');
+// The authored P-07 height image has a black exterior background. POM interprets
+// black as a deep recess, so leaving it untouched would create a false moat around
+// the hatch. Flood-fill only dark pixels connected to the texture border and turn
+// those pixels into the high/source surface. The same mask becomes BaseColor alpha.
+function sanitizeP07Exterior(base, height, size) {
+  const outside = new Uint8Array(size * size);
+  const queue = new Int32Array(size * size);
+  let head = 0;
+  let tail = 0;
+  const threshold = 18;
+  const heightData = height.pixels.data;
+  const isExteriorCandidate = (index) => heightData[index * 4] <= threshold;
+  const enqueue = (index) => {
+    if (outside[index] || !isExteriorCandidate(index)) return;
+    outside[index] = 1;
+    queue[tail++] = index;
+  };
+
+  for (let x = 0; x < size; x += 1) {
+    enqueue(x);
+    enqueue((size - 1) * size + x);
   }
+  for (let y = 0; y < size; y += 1) {
+    enqueue(y * size);
+    enqueue(y * size + size - 1);
+  }
+
+  while (head < tail) {
+    const index = queue[head++];
+    const x = index % size;
+    const y = Math.floor(index / size);
+    if (x > 0) enqueue(index - 1);
+    if (x + 1 < size) enqueue(index + 1);
+    if (y > 0) enqueue(index - size);
+    if (y + 1 < size) enqueue(index + size);
+  }
+
+  const baseData = base.pixels.data;
+  for (let i = 0; i < outside.length; i += 1) {
+    const o = i * 4;
+    if (outside[i]) {
+      heightData[o] = 255;
+      heightData[o + 1] = 255;
+      heightData[o + 2] = 255;
+      heightData[o + 3] = 255;
+      baseData[o + 3] = 0;
+    } else {
+      baseData[o + 3] = 255;
+    }
+  }
+  base.context.putImageData(base.pixels, 0, 0);
+  height.context.putImageData(height.pixels, 0, 0);
+}
+
+async function createP07Fixture() {
+  const definition = FIXTURES.p07;
   const [albedoImage, heightImage] = await Promise.all([
-    loadImage(source.albedo),
-    loadImage(source.height),
+    loadImage(definition.baseColorUrl),
+    loadImage(definition.heightUrl),
   ]);
   const nativeSize = Math.min(
     albedoImage.naturalWidth || albedoImage.width,
     heightImage.naturalWidth || heightImage.width,
   );
-  const size = Math.min(nativeSize, 2048);
+  const size = Math.min(nativeSize, 1024);
   const albedo = pixelsFrom(albedoImage, size);
   const height = pixelsFrom(heightImage, size);
-  const baseColor = makeBaseColorTexture(albedo.surface);
-  const heightMap = makeHeightTexture(height.pixels, size);
-  const normalMap = makeNormalTexture(height.pixels, size);
-  const orm = solidTexture(255, 184, 0, 255);
+  sanitizeP07Exterior(albedo, height, size);
+
+  const baseColor = makeBaseColorTexture(albedo.surface, false);
+  const heightMap = makeHeightTexture(height.pixels, size, false);
+  const normalMap = makeNormalTexture(height.pixels, size, false);
+  // Online POM validation focuses on relief accuracy. Use a neutral PBR response
+  // while the full authored AO/Roughness/Metallic pack remains the source asset.
+  const orm = solidTexture(255, 190, 24, 255);
   const emissive = solidTexture(0, 0, 0, 255);
   return {
+    ...definition,
     nativeSize,
     size,
     baseColor,
@@ -184,6 +272,47 @@ async function createReferenceFixture() {
       [baseColor, heightMap, normalMap, orm, emissive].forEach((texture) => texture.dispose());
     },
   };
+}
+
+async function createRockFixture() {
+  const definition = FIXTURES.rock;
+  const source = window.ROCKWALL;
+  if (!source?.albedo || !source?.height) {
+    throw new Error('Pinned mfagerlund ROCKWALL fixture was not loaded.');
+  }
+  const [albedoImage, heightImage] = await Promise.all([
+    loadImage(source.albedo),
+    loadImage(source.height),
+  ]);
+  const nativeSize = Math.min(
+    albedoImage.naturalWidth || albedoImage.width,
+    heightImage.naturalWidth || heightImage.height,
+  );
+  const size = Math.min(nativeSize, 2048);
+  const albedo = pixelsFrom(albedoImage, size);
+  const height = pixelsFrom(heightImage, size);
+  const baseColor = makeBaseColorTexture(albedo.surface, true);
+  const heightMap = makeHeightTexture(height.pixels, size, true);
+  const normalMap = makeNormalTexture(height.pixels, size, true);
+  const orm = solidTexture(255, 184, 0, 255);
+  const emissive = solidTexture(0, 0, 0, 255);
+  return {
+    ...definition,
+    nativeSize,
+    size,
+    baseColor,
+    heightMap,
+    normalMap,
+    orm,
+    emissive,
+    dispose() {
+      [baseColor, heightMap, normalMap, orm, emissive].forEach((texture) => texture.dispose());
+    },
+  };
+}
+
+async function createFixture(id) {
+  return id === 'rock' ? createRockFixture() : createP07Fixture();
 }
 
 const renderer = new THREE.WebGLRenderer({
@@ -234,6 +363,7 @@ let normalMaterial = null;
 let pomMaterial = null;
 let normalMesh = null;
 let pomMesh = null;
+let fixtureRevision = 0;
 
 function makePanelGeometry() {
   const geometry = new THREE.PlaneGeometry(2.7, 2.7);
@@ -248,8 +378,8 @@ function makeMaterial({ pom = false } = {}) {
     orm: fixture.orm,
     emissive: fixture.emissive,
   });
-  material.transparent = false;
-  material.alphaTest = 0;
+  material.transparent = fixture.hasAlpha === true;
+  material.alphaTest = fixture.hasAlpha === true ? 0.02 : 0;
   material.depthWrite = true;
   material.polygonOffset = false;
   material.roughness = 0.72;
@@ -267,6 +397,29 @@ function makeMaterial({ pom = false } = {}) {
   return material;
 }
 
+function rebuildMaterials() {
+  const previousNormal = normalMaterial;
+  const previousPom = pomMaterial;
+  normalMaterial = makeMaterial({ pom: false });
+  pomMaterial = makeMaterial({ pom: true });
+  if (!normalMesh) {
+    normalMesh = new THREE.Mesh(makePanelGeometry(), normalMaterial);
+    normalMesh.position.x = -1.55;
+    scene.add(normalMesh);
+  } else {
+    normalMesh.material = normalMaterial;
+  }
+  if (!pomMesh) {
+    pomMesh = new THREE.Mesh(makePanelGeometry(), pomMaterial);
+    pomMesh.position.x = 1.55;
+    scene.add(pomMesh);
+  } else {
+    pomMesh.material = pomMaterial;
+  }
+  previousNormal?.dispose?.();
+  previousPom?.dispose?.();
+}
+
 function updatePom() {
   if (!pomMaterial) return;
   const minimum = Math.min(number(ui.minSteps), number(ui.maxSteps));
@@ -281,11 +434,16 @@ function updatePom() {
 
 function updateTiling() {
   if (!fixture) return;
-  const repeat = number(ui.tile);
+  const repeat = fixture.repeatable ? number(ui.tile) : 1;
+  ui.tile.disabled = !fixture.repeatable;
   [fixture.baseColor, fixture.heightMap, fixture.normalMap].forEach((texture) => {
     texture.repeat.set(repeat, repeat);
     texture.needsUpdate = true;
   });
+  if (!fixture.repeatable) {
+    ui.tile.value = '1';
+    updateLabels();
+  }
 }
 
 function updateLight() {
@@ -316,6 +474,40 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+async function switchFixture(id, { resetView = true } = {}) {
+  const revision = ++fixtureRevision;
+  const definition = FIXTURES[id] || FIXTURES.p07;
+  status.style.color = '';
+  status.textContent = `Loading ${definition.label}…`;
+  ui.fixtureSelect.disabled = true;
+  try {
+    const nextFixture = await createFixture(definition.id);
+    if (revision !== fixtureRevision) {
+      nextFixture.dispose();
+      return;
+    }
+    fixture?.dispose?.();
+    fixture = nextFixture;
+    ui.height.value = String(definition.defaultHeightScale);
+    ui.tile.value = '1';
+    updateLabels();
+    updateTiling();
+    rebuildMaterials();
+    updatePom();
+    stats.fixture.textContent = definition.label;
+    stats.resolution.textContent = `${fixture.size}² (source ${fixture.nativeSize}²)`;
+    stats.heightConvention.textContent = definition.heightConvention;
+    status.textContent = `${definition.label} ready. Compare left PBR with right ShipModule POM; use Grazing to stress the ray marcher.`;
+    if (resetView) setCamera(0, 0.2, 6.5);
+  } catch (error) {
+    console.error(error);
+    status.textContent = `Error: ${error?.message || error}`;
+    status.style.color = '#ffb0a5';
+  } finally {
+    if (revision === fixtureRevision) ui.fixtureSelect.disabled = false;
+  }
+}
+
 [ui.height, ui.minSteps, ui.maxSteps, ui.refine].forEach((element) => {
   element.addEventListener('input', () => {
     updateLabels();
@@ -332,10 +524,12 @@ ui.tile.addEventListener('input', () => {
     updateLight();
   });
 });
+ui.fixtureSelect.addEventListener('change', () => switchFixture(ui.fixtureSelect.value));
 ui.front.addEventListener('click', () => setCamera(0, 0.15, 6.5));
 ui.grazing.addEventListener('click', () => setCamera(5.7, 0.15, 1.55));
 ui.reset.addEventListener('click', () => {
-  ui.height.value = '0.12';
+  const definition = activeFixtureDefinition();
+  ui.height.value = String(definition.defaultHeightScale);
   ui.minSteps.value = '8';
   ui.maxSteps.value = '48';
   ui.refine.value = '4';
@@ -351,30 +545,7 @@ ui.reset.addEventListener('click', () => {
 
 updateLabels();
 updateLight();
-
-async function init() {
-  try {
-    status.textContent = 'Decoding pinned rock_wall_10 fixture and deriving the normal map…';
-    fixture = await createReferenceFixture();
-    stats.fixture.textContent = 'rock_wall_10 / pinned';
-    stats.resolution.textContent = `${fixture.size}² (source ${fixture.nativeSize}²)`;
-    updateTiling();
-
-    normalMaterial = makeMaterial({ pom: false });
-    pomMaterial = makeMaterial({ pom: true });
-    normalMesh = new THREE.Mesh(makePanelGeometry(), normalMaterial);
-    pomMesh = new THREE.Mesh(makePanelGeometry(), pomMaterial);
-    normalMesh.position.x = -1.55;
-    pomMesh.position.x = 1.55;
-    scene.add(normalMesh, pomMesh);
-    status.textContent = 'Ready. Use Grazing view, then increase Height scale to stress the ShipModule ray marcher.';
-  } catch (error) {
-    console.error(error);
-    status.textContent = `Error: ${error?.message || error}`;
-    status.style.color = '#ffb0a5';
-  }
-}
-init();
+switchFixture(ui.fixtureSelect.value, { resetView: false });
 
 let frames = 0;
 let sampleStart = performance.now();
