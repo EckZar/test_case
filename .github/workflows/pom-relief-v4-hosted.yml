@@ -1,0 +1,34 @@
+name: POM V4 Live Hosted Check
+on:
+  push:
+    branches: [shipmodule-pom-reference-lab]
+    paths:
+      - '.github/workflows/pom-relief-v4-hosted.yml'
+      - 'shipmodule-pom-lab/tests/relief-v4-hosted.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  published-site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser
+        run: |
+          mkdir -p /tmp/pom-hosted
+          npm install --prefix /tmp/pom-hosted --no-save --ignore-scripts playwright@1.55.0
+          /tmp/pom-hosted/node_modules/.bin/playwright install --with-deps chromium
+      - name: Open published URL and test the actual slider
+        env:
+          POM_PLAYWRIGHT_PATH: /tmp/pom-hosted/node_modules/playwright/index.mjs
+        run: node shipmodule-pom-lab/tests/relief-v4-hosted.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pom-v4-live-hosted-evidence
+          path: pom-v4-hosted-evidence/
+          retention-days: 14
