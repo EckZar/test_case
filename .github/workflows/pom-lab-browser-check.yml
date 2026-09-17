@@ -30,6 +30,12 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/pom-validation/vendor"
           cp node_modules/three/build/three.module.js node_modules/three/build/three.core.js "$GITHUB_WORKSPACE/pom-validation/vendor/"
           cp node_modules/three/examples/jsm/controls/OrbitControls.js "$GITHUB_WORKSPACE/pom-validation/vendor/"
+      - name: Verify asset transport
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f shipmodule-pom-lab/tests/staged-parts.json ]; then node shipmodule-pom-lab/tests/export-staged-parts.mjs; fi
+          cp -r shipmodule-pom-lab pom-validation/source
       - name: Browser smoke test
         env:
           POM_PLAYWRIGHT_PATH: /tmp/pom-browser/node_modules/playwright/index.mjs
@@ -37,7 +43,7 @@ jobs:
           if [ -f shipmodule-pom-lab/tests/hosted-smoke.mjs ]; then
             node shipmodule-pom-lab/tests/hosted-smoke.mjs
           else
-            printf '%s\n' 'Browser dependencies prepared; 512 fixture test not yet installed.' > pom-validation/bootstrap.txt
+            printf '%s\n' 'Preflight only; scene validation not installed yet.' > pom-validation/bootstrap.txt
           fi
       - uses: actions/upload-artifact@v4
         if: always()
