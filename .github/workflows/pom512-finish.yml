@@ -1,0 +1,67 @@
+name: Finish POM 512 Lab
+on:
+  push:
+    branches: [shipmodule-pom-reference-lab]
+    paths:
+      - '.github/workflows/pom512-finish.yml'
+      - 'shipmodule-pom-lab/tests/finish512-*'
+      - 'shipmodule-pom-lab/hatch512.html'
+      - 'shipmodule-pom-lab/lab-512.js'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: finish-pom512-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-test-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build and browser dependencies
+        run: |
+          python -m pip install --disable-pip-version-check numpy pillow opencv-python-headless
+          mkdir -p /tmp/pom512-browser
+          cd /tmp/pom512-browser
+          npm install --no-save --ignore-scripts three@0.180.0 playwright@1.55.0
+          npx playwright install --with-deps chromium
+          mkdir -p "$GITHUB_WORKSPACE/shipmodule-pom-lab/vendor"
+          cp node_modules/three/build/three.module.js node_modules/three/build/three.core.js "$GITHUB_WORKSPACE/shipmodule-pom-lab/vendor/"
+          cp node_modules/three/examples/jsm/controls/OrbitControls.js "$GITHUB_WORKSPACE/shipmodule-pom-lab/vendor/"
+          cp node_modules/three/LICENSE "$GITHUB_WORKSPACE/shipmodule-pom-lab/vendor/THREE-LICENSE.txt"
+      - name: Verify source and build 512 maps
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python shipmodule-pom-lab/tests/finish512-build.py
+      - name: Compile POM and inspect rendered frames in Chromium
+        env:
+          POM_PLAYWRIGHT_PATH: /tmp/pom512-browser/node_modules/playwright/index.mjs
+        run: node shipmodule-pom-lab/tests/finish512-smoke.mjs
+      - name: Publish verified fixture on lab branch
+        run: |
+          set -eu
+          test "${GITHUB_REF_NAME}" = "shipmodule-pom-reference-lab"
+          node -e "const r=require('./shipmodule-pom-lab/validation512.json'); if(!r.passed)process.exit(1)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add shipmodule-pom-lab/fixtures/p07_512_verified shipmodule-pom-lab/fixture-512.js shipmodule-pom-lab/vendor shipmodule-pom-lab/validation512.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat(pom-lab): publish browser-verified 512 hatch fixture and PBR maps'
+            git push origin HEAD:shipmodule-pom-reference-lab
+          fi
+          git rev-parse HEAD > pom512-evidence/published-commit.txt
+          printf 'https://raw.githack.com/EckZar/test_case/%s/shipmodule-pom-lab/hatch512.html\n' "$(git rev-parse HEAD)" > pom512-evidence/published-url.txt
+          cp -r shipmodule-pom-lab/fixtures/p07_512_verified pom512-evidence/maps
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pom512-rendered-evidence
+          path: pom512-evidence/
+          retention-days: 14
