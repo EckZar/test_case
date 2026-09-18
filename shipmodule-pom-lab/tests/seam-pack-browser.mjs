@@ -22,8 +22,27 @@ const browser = await chromium.launch({ headless:true, args:['--no-sandbox','--u
 const report = { commit: process.env.GITHUB_SHA || 'local', tests:[], errors:[], passed:false };
 const pass = (name, data={}) => report.tests.push({ name, passed:true, ...data });
 
+async function acceptRawGitHackGate(page) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const gate = page.getByText(/^Open the page$/i).first();
+    if (!await gate.count()) return;
+    const href = await gate.getAttribute('href');
+    if (href) {
+      const target = new URL(href, page.url()).href;
+      await page.goto(target, { waitUntil:'domcontentloaded', timeout:120000 });
+    } else {
+      await gate.click({ force:true });
+      await page.waitForTimeout(1200);
+    }
+  }
+}
+
 async function waitReady(page) {
-  await page.waitForFunction(() => window.__POM_SEAM_LAB__?.ready || window.__POM_SEAM_LAB__?.errors.length, { timeout:120000 });
+  await page.waitForFunction(
+    () => window.__POM_SEAM_LAB__?.ready || window.__POM_SEAM_LAB__?.errors.length,
+    null,
+    { timeout:120000 },
+  );
   const state = await page.evaluate(() => ({
     ready: __POM_SEAM_LAB__.ready, errors: __POM_SEAM_LAB__.errors,
     assetId: __POM_SEAM_LAB__.assetId, layout: __POM_SEAM_LAB__.layout,
@@ -44,9 +63,8 @@ async function run(page, url, prefix) {
   const errors=[];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type()==='error' && !message.text().includes('favicon')) errors.push(message.text()); });
-  await page.goto(url, { waitUntil:'networkidle', timeout:180000 });
-  const open = page.locator('a').filter({ hasText:/open the page|continue/i });
-  if (await open.count()) await open.first().click();
+  await page.goto(url, { waitUntil:'domcontentloaded', timeout:180000 });
+  await acceptRawGitHackGate(page);
   let state=await waitReady(page);
   assert.equal(state.assetId,'straight_frame_a');
   assert.equal(state.layout,'join');
@@ -68,7 +86,7 @@ async function run(page, url, prefix) {
 
   const before=await page.evaluate(() => __POM_SEAM_LAB__.snapshot());
   await page.locator('#sinkScale').evaluate(el => { el.value='1.8'; el.dispatchEvent(new Event('input',{bubbles:true})); });
-  await page.waitForFunction(() => Math.abs(__POM_SEAM_LAB__.parameters.sinkScale-1.8)<1e-6);
+  await page.waitForFunction(() => Math.abs(__POM_SEAM_LAB__.parameters.sinkScale-1.8)<1e-6, null, { timeout:30000 });
   assert.equal(await page.evaluate(() => __POM_SEAM_LAB__.uniforms().pomSinkScale),1.8);
   const after=await page.evaluate(() => __POM_SEAM_LAB__.snapshot());
   assert.notEqual(before.hash, after.hash);
@@ -89,10 +107,10 @@ try {
   if (process.env.GITHUB_SHA) {
     const url=`https://rawcdn.githack.com/EckZar/test_case/${process.env.GITHUB_SHA}/shipmodule-pom-lab/seams.html`;
     let finalError;
-    for (let attempt=1; attempt<=8; attempt++) {
+    for (let attempt=1; attempt<=6; attempt++) {
       const hosted=await browser.newPage({ viewport:{width:1440,height:1000}, deviceScaleFactor:1 });
       try { await run(hosted,url,'hosted'); report.hostedUrl=url; finalError=null; await hosted.close(); break; }
-      catch (error) { finalError=error; await hosted.screenshot({path:path.join(output,`hosted-${attempt}.png`),fullPage:true}).catch(()=>{}); await hosted.close(); if(attempt<8) await new Promise(r=>setTimeout(r,20000)); }
+      catch (error) { finalError=error; await hosted.screenshot({path:path.join(output,`hosted-${attempt}.png`),fullPage:true}).catch(()=>{}); await hosted.close(); if(attempt<6) await new Promise(r=>setTimeout(r,15000)); }
     }
     if (finalError) throw finalError;
   }
