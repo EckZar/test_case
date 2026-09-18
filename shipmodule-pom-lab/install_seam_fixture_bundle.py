@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import shutil
@@ -8,19 +9,12 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 TRANSFER = ROOT / "shipmodule-pom-lab" / "_seam-fixture-install"
-ARCHIVE = TRANSFER / "seam-fixtures.zip"
 EXPECTED_SHA256 = "577740b10e7b1acd80db1209719c2f68c7224af6300b2e13e803c419a590be4c"
 EXPECTED_BYTES = 119_933
 EXPECTED_MODULES = {
-    "angled_hub_a.js",
-    "corner_hub_a.js",
-    "cross_hub_a.js",
-    "straight_frame_a.js",
-    "straight_offset_a.js",
-    "straight_offset_b.js",
-    "straight_reinforced_a.js",
-    "t_hub_a.js",
-    "y_hub_a.js",
+    "angled_hub_a.js", "corner_hub_a.js", "cross_hub_a.js",
+    "straight_frame_a.js", "straight_offset_a.js", "straight_offset_b.js",
+    "straight_reinforced_a.js", "t_hub_a.js", "y_hub_a.js",
 }
 
 
@@ -40,9 +34,15 @@ def safe_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
 
 
 def main() -> None:
-    if not ARCHIVE.is_file():
-        fail("missing seam-fixtures.zip")
-    payload = ARCHIVE.read_bytes()
+    parts = sorted(TRANSFER.glob("part-*.txt"))
+    expected = [f"part-{index:02d}.txt" for index in range(8)]
+    if [path.name for path in parts] != expected:
+        fail(f"expected 8 transfer chunks, found {[path.name for path in parts]}")
+    encoded = "".join("".join(path.read_text(encoding="ascii").split()) for path in parts)
+    try:
+        payload = base64.b64decode(encoded, validate=True)
+    except Exception as error:
+        fail(f"invalid base64: {error}")
     if len(payload) != EXPECTED_BYTES:
         fail(f"archive size {len(payload)}, expected {EXPECTED_BYTES}")
     digest = hashlib.sha256(payload).hexdigest()
@@ -52,9 +52,10 @@ def main() -> None:
     destination = ROOT / "shipmodule-pom-lab" / "seam-fixtures"
     if destination.exists():
         shutil.rmtree(destination)
-    with zipfile.ZipFile(ARCHIVE) as archive:
-        members = safe_members(archive)
-        archive.extractall(ROOT, members=members)
+    archive_path = TRANSFER / "seam-fixtures.zip"
+    archive_path.write_bytes(payload)
+    with zipfile.ZipFile(archive_path) as archive:
+        archive.extractall(ROOT, members=safe_members(archive))
 
     found = {path.name for path in destination.glob("*.js")}
     if found != EXPECTED_MODULES:
@@ -76,7 +77,6 @@ def main() -> None:
     (ROOT / "shipmodule-pom-lab" / "seam-pack-published.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
-
     shutil.rmtree(TRANSFER)
     Path(__file__).unlink()
     workflow = ROOT / ".github" / "workflows" / "install-pom-seam-fixtures.yml"
