@@ -1,0 +1,39 @@
+name: Install POM Seam Fixtures
+on:
+  push:
+    branches: [shipmodule-pom-reference-lab]
+    paths:
+      - '.github/workflows/install-pom-seam-fixtures.yml'
+      - 'shipmodule-pom-lab/install_seam_fixture_bundle.py'
+      - 'shipmodule-pom-lab/_seam-fixture-install/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: install-pom-seam-fixtures-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconstruct and validate fixture modules
+        run: |
+          python shipmodule-pom-lab/install_seam_fixture_bundle.py
+          node --check shipmodule-pom-lab/seam-pack-fixture.js
+          for file in shipmodule-pom-lab/seam-fixtures/*.js; do node --check "$file"; done
+      - name: Publish fixture modules and remove transfer payload
+        run: |
+          set -eu
+          test "${GITHUB_REF_NAME}" = "shipmodule-pom-reference-lab"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(pom-lab): publish modular seam fixture payload'
+          git push origin HEAD:shipmodule-pom-reference-lab
