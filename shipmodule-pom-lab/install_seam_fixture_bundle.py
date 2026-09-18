@@ -9,8 +9,8 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 CHUNKS = ROOT / "shipmodule-pom-lab" / "_seam-fixture-install"
-EXPECTED_SHA256 = "a4357a759e34c62d48b62997073c1d51a68bed10d53f0a9b17524b9481d110d3"
-EXPECTED_BYTES = 176_173
+EXPECTED_SHA256 = "577740b10e7b1acd80db1209719c2f68c7224af6300b2e13e803c419a590be4c"
+EXPECTED_BYTES = 119_933
 EXPECTED_MODULES = {
     "angled_hub_a.js",
     "corner_hub_a.js",
@@ -41,9 +41,9 @@ def safe_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
 
 def main() -> None:
     parts = sorted(CHUNKS.glob("part-*.txt"))
-    expected_parts = [f"part-{index:02d}.txt" for index in range(12)]
+    expected_parts = [f"part-{index:02d}.txt" for index in range(8)]
     if [path.name for path in parts] != expected_parts:
-        fail(f"expected 12 ordered chunks, found {[path.name for path in parts]}")
+        fail(f"expected 8 ordered chunks, found {[path.name for path in parts]}")
 
     encoded = "".join(path.read_text(encoding="ascii").strip() for path in parts)
     try:
@@ -80,7 +80,7 @@ def main() -> None:
         "packId": "shipmodule-seam-pack-v1",
         "moduleCount": len(found),
         "socketStandard": "seam_rail_v1",
-        "runtimeProfile": "compact-384-v1",
+        "runtimeProfile": "compact-320-q64-h85-v1",
         "archiveSha256": digest,
         "modules": sorted(found),
     }
