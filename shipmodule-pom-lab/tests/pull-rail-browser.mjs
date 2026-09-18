@@ -54,8 +54,6 @@ async function runPage(page, url, prefix) {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error' && !message.text().includes('favicon')) errors.push(message.text()); });
   await page.goto(url, { waitUntil: 'networkidle', timeout: 120000 });
-  const open = page.locator('a').filter({ hasText: /open the page|continue/i });
-  if (await open.count()) await open.first().click();
   const initial = await inspect(page);
   test(`${prefix}: fixture integrity and shader compile`, initial);
 
@@ -97,9 +95,11 @@ try {
   await local.close();
 
   if (process.env.GITHUB_SHA) {
-    const hostedUrl = `https://raw.githack.com/EckZar/test_case/${process.env.GITHUB_SHA}/shipmodule-pom-lab/pull-rail.html`;
+    // rawcdn is the immutable production endpoint. It serves the exact commit
+    // directly and does not show raw.githack's interactive confirmation page.
+    const hostedUrl = `https://rawcdn.githack.com/EckZar/test_case/${process.env.GITHUB_SHA}/shipmodule-pom-lab/pull-rail.html`;
     let hostedError;
-    for (let attempt = 1; attempt <= 6; attempt++) {
+    for (let attempt = 1; attempt <= 8; attempt++) {
       const hosted = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
       try {
         report.hosted = { url: hostedUrl, state: await runPage(hosted, hostedUrl, 'hosted') };
@@ -110,7 +110,7 @@ try {
         hostedError = error;
         await hosted.screenshot({ path: path.join(output, `hosted-attempt-${attempt}.png`), fullPage: true }).catch(() => {});
         await hosted.close();
-        if (attempt < 6) await new Promise(resolve => setTimeout(resolve, 20000));
+        if (attempt < 8) await new Promise(resolve => setTimeout(resolve, 15000));
       }
     }
     if (hostedError) throw hostedError;
