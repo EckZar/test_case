@@ -1,0 +1,44 @@
+name: POM Pull Rail Validation
+on:
+  push:
+    branches: [shipmodule-pom-reference-lab]
+    paths:
+      - '.github/workflows/pom-pull-rail-check.yml'
+      - 'shipmodule-pom-lab/pull-*'
+      - 'shipmodule-pom-lab/assets.html'
+      - 'shipmodule-pom-lab/PomDecalMaterial.js'
+      - 'shipmodule-pom-lab/PomReliefProfile.js'
+      - 'shipmodule-pom-lab/tests/pull-rail-browser.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser dependency
+        run: |
+          mkdir -p /tmp/pull-rail
+          npm install --prefix /tmp/pull-rail --no-save --ignore-scripts playwright@1.55.0
+          /tmp/pull-rail/node_modules/.bin/playwright install --with-deps chromium
+      - name: Syntax check
+        run: |
+          node --check shipmodule-pom-lab/pull-rail.js
+          node --check shipmodule-pom-lab/pull-rail-codec.js
+          node --check shipmodule-pom-lab/pull-rail-controls.js
+          node --check shipmodule-pom-lab/pull-rail-fixture.js
+      - name: Render fixture locally and from immutable hosted URL
+        env:
+          POM_PLAYWRIGHT_PATH: /tmp/pull-rail/node_modules/playwright/index.mjs
+        run: node shipmodule-pom-lab/tests/pull-rail-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pom-pull-rail-evidence
+          path: pull-rail-evidence/
+          retention-days: 14
