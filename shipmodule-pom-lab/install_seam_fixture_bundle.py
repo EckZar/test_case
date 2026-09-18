@@ -9,8 +9,8 @@ from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 CHUNKS = ROOT / "shipmodule-pom-lab" / "_seam-fixture-install"
-EXPECTED_SHA256 = "155bff415238c5eee396b4e12cd1ae082e168fdecc73593419455290723ba1ea"
-EXPECTED_BYTES = 415_502
+EXPECTED_SHA256 = "a4357a759e34c62d48b62997073c1d51a68bed10d53f0a9b17524b9481d110d3"
+EXPECTED_BYTES = 176_173
 EXPECTED_MODULES = {
     "angled_hub_a.js",
     "corner_hub_a.js",
@@ -80,6 +80,7 @@ def main() -> None:
         "packId": "shipmodule-seam-pack-v1",
         "moduleCount": len(found),
         "socketStandard": "seam_rail_v1",
+        "runtimeProfile": "compact-384-v1",
         "archiveSha256": digest,
         "modules": sorted(found),
     }
