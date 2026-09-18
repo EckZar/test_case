@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
+<title>ShipModule · Modular Seam POM Lab</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#e6edf5;background:#10151d}*{box-sizing:border-box}html,body{margin:0;height:100%;background:#10151d}.shell{height:100dvh;display:grid;grid-template-columns:360px minmax(0,1fr)}aside{padding:20px;overflow:auto;border-right:1px solid #314153;background:#151d28}h1{font-size:24px;line-height:1.15;margin:8px 0 12px}h2,summary{font-size:12px;letter-spacing:.04em;margin:20px 0 10px;color:#adc9e7}.eyebrow{color:#89b8e7;font:11px monospace;letter-spacing:.08em}.intro,.note{font-size:12px;line-height:1.55;color:#aebdce}.note{font-size:11px;color:#94a6bc}.control{display:grid;grid-template-columns:1fr auto;font-size:12px;margin:12px 0 0;gap:5px}input[type=range]{grid-column:1/-1;width:100%;accent-color:#86b7e8}output{font-family:monospace;color:#b2d5f8}select,button{font:12px system-ui;color:#edf4fb;border:1px solid #405673;background:#202e40;border-radius:6px;padding:8px;cursor:pointer}select{width:100%;grid-column:1/-1}button:hover{background:#2e425c}.buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:12px}.check{display:flex;gap:8px;font-size:12px;margin-top:12px}.stats{font-size:11px;display:grid;grid-template-columns:1fr auto;gap:8px}.stats span:nth-child(even){font-family:monospace;color:#b2d5f8;text-align:right}a{color:#a4cef5}.nav{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 18px;font-size:12px}#view{position:relative;min-width:0;min-height:0;background:radial-gradient(circle at 50% 42%,#1e2d3c,#090d12 68%)}canvas{display:block;width:100%;height:100%;touch-action:none}.tag{position:absolute;top:18px;max-width:44%;padding:8px 12px;border:1px solid #536b87;border-radius:6px;background:#111a27e8;font:11px monospace;pointer-events:none}.left{left:18px}.right{left:calc(50% + 18px)}.divider{position:absolute;left:50%;height:100%;width:1px;background:#71839b40;pointer-events:none}#status{position:absolute;bottom:16px;left:16px;right:16px;max-height:30%;overflow:auto;padding:11px 13px;border:1px solid #405571;border-radius:6px;background:#111a27e8;color:#c2d6ed;white-space:pre-wrap;font:12px/1.45 monospace}#status[data-state=error]{border-color:#bc6a65;color:#ffd0ca}#status[data-state=ready]{border-color:#648a7b}.badge{padding:4px 7px;background:#2d473f;border-radius:4px;color:#c2e8d6;display:inline-block;font:11px monospace}summary{cursor:pointer}@media(max-width:820px){.shell{height:auto;grid-template-columns:1fr}#view{height:76vh;min-height:560px}.tag{font-size:9px;padding:6px}}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body><main class="shell"><aside>
+<div class="eyebrow">SHIPMODULE / MODULAR POM ASSETS</div><h1>Seam Pack v1<br>POM Lab</h1><span class="badge">9 MODULES · RELIEF v4</span>
+<div class="nav"><a href="./assets.html">← Коллекция</a><a href="./pull-rail.html">Pull Rail</a><a href="./hatch512.html">P-07 Hatch</a></div>
+<p class="intro">Набор модульных швов с единым сокетом <code>seam_rail_v1</code>. Слева обычный PBR/Normal, справа те же модули через актуальный <code>PomDecalMaterial</code>. Режимы сборки проверяют соединение нескольких POM Decal.</p>
+<h2>АССЕТ И СБОРКА</h2>
+<label class="control">Модуль<select id="asset"></select></label>
+<label class="control">Проверка соединений<select id="layout"><option value="single">Один модуль</option><option value="join">Два сегмента встык</option><option value="cross">Cross Hub + 4 сегмента</option><option value="t">T Hub + 3 сегмента</option><option value="y">Y Hub + 3 сегмента</option><option value="corner">Corner Hub + 2 сегмента</option><option value="angled">Angled Hub + 2 сегмента</option></select></label>
+<label class="control">Отображение<select id="mode"><option value="pbr">BaseColor + PBR</option><option value="clay">Нейтральный материал / рельеф</option><option value="height">Height после обработки, без POM</option></select></label>
+<label class="check"><input id="cutout" type="checkbox" checked>Маска внешнего контура</label>
+<h2>ВЫСТУПЫ И ВПАДИНЫ</h2>
+<label class="control">Общий масштаб · Height Scale <output id="heightOut">0.016</output><input id="height" type="range" min="0" max="0.12" step="0.001" value="0.016"></label>
+<label class="control">Нулевой уровень · Neutral <output id="neutralLevelOut">0.58</output><input id="neutralLevel" type="range" min="0" max="1" step="0.01" value="0.58"></label>
+<label class="control">Выступы · Raise <output id="raiseScaleOut">0.32</output><input id="raiseScale" type="range" min="0" max="3" step="0.01" value="0.32"></label>
+<label class="control">Впадины · Sink <output id="sinkScaleOut">1.35</output><input id="sinkScale" type="range" min="0" max="3" step="0.01" value="1.35"></label>
+<h2>КАЧЕСТВО СТЕНОК</h2>
+<label class="control">Смягчение перепадов, px <output id="wallSoftnessPxOut">0.75</output><input id="wallSoftnessPx" type="range" min="0" max="4" step="0.25" value="0.75"></label>
+<label class="control">Minimum Steps <output id="minOut">12</output><input id="minSteps" type="range" min="2" max="64" step="1" value="12"></label>
+<label class="control">Maximum Steps <output id="maxOut">96</output><input id="maxSteps" type="range" min="8" max="128" step="1" value="96"></label>
+<label class="control">Refinement <output id="refineOut">6</output><input id="refine" type="range" min="0" max="8" step="1" value="6"></label>
+<label class="check"><input id="stableGradients" type="checkbox" checked>Стабильная фильтрация PBR-карт</label>
+<details><summary>Дополнительные ограничения</summary>
+<label class="control">Максимальное смещение UV <output id="maxUvOffsetOut">0.22</output><input id="maxUvOffset" type="range" min="0.01" max="0.5" step="0.01" value="0.22"></label>
+<label class="control">Fade Start, cos угла <output id="grazingFadeStartOut">0.08</output><input id="grazingFadeStart" type="range" min="0" max="0.3" step="0.01" value="0.08"></label>
+<label class="control">Fade End, cos угла <output id="grazingFadeEndOut">0.22</output><input id="grazingFadeEnd" type="range" min="0.01" max="0.5" step="0.01" value="0.22"></label>
+<label class="control">Jitter · эксперимент <output id="jitterStrengthOut">0.00</output><input id="jitterStrength" type="range" min="0" max="1" step="0.05" value="0"></label></details>
+<h2>КАМЕРА / СВЕТ</h2>
+<label class="control">Азимут света <output id="azOut">35°</output><input id="az" type="range" min="-80" max="80" step="1" value="35"></label>
+<label class="control">Высота света <output id="elOut">55°</output><input id="el" type="range" min="5" max="85" step="1" value="55"></label>
+<div class="buttons"><button id="front">Front</button><button id="oblique">3/4</button><button id="grazing">Grazing</button><button id="reset">Рекомендованный</button><button id="legacy">Исходный POM</button></div>
+<h2>ПРОВЕРКА</h2><div class="stats"><span>Пакет</span><span id="packName">—</span><span>Активные Decal</span><span id="activeCount">—</span><span>Выбранная карта</span><span id="resolution">—</span><span>Целостность</span><span id="integrity">—</span><span>Shader</span><span id="shader">—</span><span>Socket</span><span id="socket">—</span><span>Верх / низ, UV</span><span id="range">—</span><span>FPS</span><span id="fps">—</span></div>
+<p class="note">Кромки соединений нормализованы общей переходной полосой и описаны портами в manifest. Для размещения в ShipModule нужно совместить порты и развернуть их внешние направления друг к другу. Исходные карты высокого разрешения хранятся отдельно; стенд использует облегчённые runtime-карты.</p>
+</aside><section id="view"><canvas id="canvas"></canvas><span class="tag left">NORMAL / PBR</span><span class="tag right">SHIPMODULE POM v4</span><span class="divider"></span><pre id="status" role="status">Загрузка Seam Pack v1…</pre></section></main>
+<script type="module">try{await import('./seams.js');}catch(e){const s=document.getElementById('status');s.dataset.state='error';s.textContent='Не удалось запустить стенд: '+(e?.message||String(e));console.error(e);}</script>
+</body></html>
