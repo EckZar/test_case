@@ -1,0 +1,127 @@
+{
+  "schema": 2,
+  "set": "reference-pom-production-hd",
+  "sourceEncoding": "full-resolution AVIF staging",
+  "assets": [
+    {
+      "id": "ref-01",
+      "width": 1024,
+      "height": 1536,
+      "files": {
+        "baseColor": "ref-01/basecolor.png",
+        "height": "ref-01/height.png",
+        "normal": "ref-01/normal.png",
+        "alpha": "ref-01/alpha.png",
+        "orm": "ref-01/orm.png"
+      }
+    },
+    {
+      "id": "ref-02",
+      "width": 1024,
+      "height": 1536,
+      "files": {
+        "baseColor": "ref-02/basecolor.png",
+        "height": "ref-02/height.png",
+        "normal": "ref-02/normal.png",
+        "alpha": "ref-02/alpha.png",
+        "orm": "ref-02/orm.png"
+      }
+    },
+    {
+      "id": "ref-03",
+      "width": 682,
+      "height": 2048,
+      "files": {
+        "baseColor": "ref-03/basecolor.png",
+        "height": "ref-03/height.png",
+        "normal": "ref-03/normal.png",
+        "alpha": "ref-03/alpha.png",
+        "orm": "ref-03/orm.png"
+      }
+    },
+    {
+      "id": "ref-04",
+      "width": 1024,
+      "height": 1536,
+      "files": {
+        "baseColor": "ref-04/basecolor.png",
+        "height": "ref-04/height.png",
+        "normal": "ref-04/normal.png",
+        "alpha": "ref-04/alpha.png",
+        "orm": "ref-04/orm.png"
+      }
+    },
+    {
+      "id": "ref-05",
+      "width": 682,
+      "height": 2048,
+      "files": {
+        "baseColor": "ref-05/basecolor.png",
+        "height": "ref-05/height.png",
+        "normal": "ref-05/normal.png",
+        "alpha": "ref-05/alpha.png",
+        "orm": "ref-05/orm.png"
+      }
+    },
+    {
+      "id": "ref-06",
+      "width": 685,
+      "height": 2048,
+      "files": {
+        "baseColor": "ref-06/basecolor.png",
+        "height": "ref-06/height.png",
+        "normal": "ref-06/normal.png",
+        "alpha": "ref-06/alpha.png",
+        "orm": "ref-06/orm.png"
+      }
+    },
+    {
+      "id": "ref-07",
+      "width": 1254,
+      "height": 1254,
+      "files": {
+        "baseColor": "ref-07/basecolor.png",
+        "height": "ref-07/height.png",
+        "normal": "ref-07/normal.png",
+        "alpha": "ref-07/alpha.png",
+        "orm": "ref-07/orm.png"
+      }
+    },
+    {
+      "id": "ref-08",
+      "width": 1254,
+      "height": 1254,
+      "files": {
+        "baseColor": "ref-08/basecolor.png",
+        "height": "ref-08/height.png",
+        "normal": "ref-08/normal.png",
+        "alpha": "ref-08/alpha.png",
+        "orm": "ref-08/orm.png"
+      }
+    },
+    {
+      "id": "ref-09",
+      "width": 1254,
+      "height": 1254,
+      "files": {
+        "baseColor": "ref-09/basecolor.png",
+        "height": "ref-09/height.png",
+        "normal": "ref-09/normal.png",
+        "alpha": "ref-09/alpha.png",
+        "orm": "ref-09/orm.png"
+      }
+    },
+    {
+      "id": "ref-10",
+      "width": 1254,
+      "height": 1254,
+      "files": {
+        "baseColor": "ref-10/basecolor.png",
+        "height": "ref-10/height.png",
+        "normal": "ref-10/normal.png",
+        "alpha": "ref-10/alpha.png",
+        "orm": "ref-10/orm.png"
+      }
+    }
+  ]
+}
