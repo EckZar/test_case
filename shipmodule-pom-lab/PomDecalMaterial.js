@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { normalizePomReliefOptions } from './PomReliefProfile.js';
 
-export const POM_PROGRAM_KEY = 'shipmodule-pom-decal-r180-v4:steps128:refine8:asymmetric-relief';
+export const POM_PROGRAM_KEY = 'shipmodule-pom-decal-r180-v5:steps128:refine8:asymmetric-relief:edge-safe';
 const finite = (value, fallback, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(value) ? value : fallback));
 
 function declarations() {
@@ -14,13 +14,22 @@ uniform float pomNeutralLevel, pomRaiseScale, pomSinkScale;
 uniform float pomStableGradients, pomJitterStrength;
 vec2 pomBaseUv, pomUvDx, pomUvDy;
 
+bool pomUvInside(vec2 uv) {
+  return all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
+}
 float pomSignedHeight(float h) {
   float d = h - pomNeutralLevel;
   return d * (d >= 0.0 ? pomRaiseScale : pomSinkScale);
 }
 float samplePomDepth(vec2 uv, float top, float span) {
-  float h = textureGrad(pomHeightMap, uv, pomUvDx, pomUvDy).r;
-  return (top - pomSignedHeight(h)) / span;
+  if (!pomUvInside(uv)) return 2.0;
+  vec4 heightTexel = textureGrad(pomHeightMap, uv, pomUvDx, pomUvDy);
+  if (heightTexel.a <= 0.01) return 2.0;
+  return (top - pomSignedHeight(heightTexel.r)) / span;
+}
+bool pomValidResolvedUv(vec2 uv) {
+  if (!pomUvInside(uv)) return false;
+  return textureGrad(pomHeightMap, uv, pomUvDx, pomUvDy).a > 0.01;
 }
 vec4 pomSampleMap(sampler2D tex, vec2 uv) {
   if (pomStableGradients > 0.5) return textureGrad(tex, uv, pomUvDx, pomUvDy);
@@ -32,7 +41,6 @@ float pomHash(vec2 p) {
   return fract((q.x + q.y) * q.z);
 }
 vec2 resolvePomDecalUv(vec2 baseUv) {
-  // Three.js vViewPosition points surface -> camera, not camera -> surface.
   vec3 viewDir = normalize(vViewPosition);
   vec3 surfacePositionView = -vViewPosition;
   vec3 dpdx = dFdx(surfacePositionView), dpdy = dFdy(surfacePositionView);
@@ -42,7 +50,6 @@ vec2 resolvePomDecalUv(vec2 baseUv) {
   vec3 T = normalize((dpdx * pomUvDy.y - dpdy * pomUvDx.y) / det);
   vec3 B = normalize((-dpdx * pomUvDy.x + dpdy * pomUvDx.x) / det);
   vec3 N = normalize(cross(T, B));
-  // Orient N only; flipping B would reverse mirrored UVs / the back face ray.
   if (dot(N, viewDir) < 0.0) N = -N;
   vec3 V = vec3(dot(viewDir,T), dot(viewDir,B), max(dot(viewDir,N), 0.0));
   float facing = clamp(V.z, 0.0, 1.0);
@@ -55,8 +62,6 @@ vec2 resolvePomDecalUv(vec2 baseUv) {
   vec2 slope = V.xy / max(facing, 0.08) * pomHeightScale * fade;
   float bound = length(slope) * max(top, -bottom);
   if (bound > pomMaxUvOffset) slope *= pomMaxUvOffset / max(bound, 1e-8);
-  // The actual polygon stays at z=0, raw h=neutralLevel. Trace from the top
-  // envelope to the bottom. Raise and sink remain independent, without clipping.
   vec2 startUv = baseUv + slope * top;
   vec2 total = slope * span;
   float angleSteps = mix(pomMaxSteps, pomMinSteps, facing);
@@ -64,11 +69,9 @@ vec2 resolvePomDecalUv(vec2 baseUv) {
   float steps = ceil(clamp(max(angleSteps, texelSteps), pomMinSteps, pomMaxSteps));
   float before = 0.0;
   float beforeSurface = samplePomDepth(startUv, top, span);
-  if (beforeSurface <= 1e-6) return startUv;
+  if (beforeSurface <= 1e-6 && pomValidResolvedUv(startUv)) return startUv;
   float after = 1.0, afterSurface = 1.0;
   bool hit = false;
-  // Fixed per-pixel jitter is optional and OFF by default: no temporal AA in lab.
-  // Depth and UV use the same phase and the last sample always reaches t=1.
   float phase = mix(1.0, 0.05 + 0.95 * pomHash(gl_FragCoord.xy), pomJitterStrength);
   for (int i=0; i<128; ++i) {
     if (float(i) >= steps) break;
@@ -77,7 +80,10 @@ vec2 resolvePomDecalUv(vec2 baseUv) {
     if (t >= surface) { after=t; afterSurface=surface; hit=true; break; }
     before=t; beforeSurface=surface;
   }
-  if (!hit) return startUv - total;
+  if (!hit) {
+    vec2 missUv = startUv - total;
+    return pomValidResolvedUv(missUv) ? missUv : baseUv;
+  }
   for (int i=0; i<8; ++i) {
     if (float(i) >= pomRefinementSteps) break;
     float t=(before+after)*0.5;
@@ -85,11 +91,11 @@ vec2 resolvePomDecalUv(vec2 baseUv) {
     if (t<surface) { before=t; beforeSurface=surface; }
     else { after=t; afterSurface=surface; }
   }
-  // Secant interpolation inside the last valid bracket removes layer snapping.
   float f0=beforeSurface-before, f1=afterSurface-after;
   float denom=f0-f1;
   float w=abs(denom)>1e-8?clamp(f0/denom,0.0,1.0):0.5;
-  return startUv-total*mix(before,after,w);
+  vec2 resolved = startUv-total*mix(before,after,w);
+  return pomValidResolvedUv(resolved) ? resolved : baseUv;
 }
 #endif
 `;
@@ -105,8 +111,6 @@ function decorate(shader) {
 #endif
 `;
   shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\n'+declarations());
-  // Keep Three.js r180 lighting, ORM channel layout, color conversion and alpha.
-  // Replace only texture lookups; normal TBN must use the ORIGINAL surface UV.
   for (const name of ['map_fragment','normal_fragment_begin','normal_fragment_maps','roughnessmap_fragment','metalnessmap_fragment','aomap_fragment','emissivemap_fragment','alphamap_fragment']) {
     const original = THREE.ShaderChunk[name];
     let enhanced = original.replace(/texture2D\(\s*(map|normalMap|roughnessMap|metalnessMap|aoMap|emissiveMap|alphaMap)\s*,\s*v\w*Uv\s*\)/g, 'pomSampleMap( $1, pomDecalUv )');
@@ -138,7 +142,7 @@ export function enablePomDecalMaterial(material, options = {}) {
   };
   material.userData.pomUniforms=uniforms;
   material.userData.pomEnabled=true;
-  material.userData.pomStability='asymmetric-relief-v4';
+  material.userData.pomStability='asymmetric-relief-v5-edge-safe';
   material.userData.pomHeightConvention='WHITE_HIGH_BLACK_LOW';
   updatePomDecalMaterial(material, options);
   material.onBeforeCompile=shader=>{Object.assign(shader.uniforms,uniforms);decorate(shader);};
