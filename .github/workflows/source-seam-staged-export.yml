@@ -1,71 +1,71 @@
-name: Source Seam Exact Blob Audit
+name: Publish Exact Source Seam Stand
 on:
   push:
     branches: [shipmodule-pom-reference-lab]
     paths: ['.github/workflows/source-seam-staged-export.yml']
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
-  audit:
+  publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22' }
-      - name: Audit exact source seam Git blobs
+        with:
+          ref: shipmodule-pom-reference-lab
+          fetch-depth: 0
+      - name: Restore exact-source POM stand from staged archive
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARCHIVE_BLOB: b51a96454b32abec1856867d29b2b445b0dea56d
         run: |
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs/promises';
-          const manifest = [
-            ['source_angle_01-base-00.js','11cd233bdb307eb17abb8e88577483a0c3bcc0b4'],
-            ['source_angle_01-base-01.js','3d71ba846c2df3b2cc78e4c0d3c0caa01d7dad6e'],
-            ['source_angle_01-height-00.js','1b3db60002904bf36cdd6b891126a0524e322249'],
-            ['source_angle_01-height-01.js','6df784d2faed60b964e080625cae2f3cb40038ef'],
-            ['source_cross_01-base-00.js','81d5be67e62081d76798322f08a51f11e452aaa7'],
-            ['source_cross_01-base-01.js','3ff69820b0cb0621e293ee7ea42a152fe96f6871'],
-            ['source_cross_01-height-00.js','5dfbae7bc541bdc87a65c9c26af6c315385fc7bc'],
-            ['source_cross_01-height-01.js','4b42e2e9dec361f012a6d7358498b7cfadc6ca1a'],
-            ['source_straight_01-base-00.js','9561481b4f27e4997057a8d2a477b1b47fb8dc35'],
-            ['source_straight_01-height-00.js','72e5ab040fdbd8097412a95b6c10541ecea97101'],
-            ['source_straight_02-base-00.js','abf4c9e4cd76288aeff962fb09c9077ac4e1a6a9'],
-            ['source_straight_02-height-00.js','62cd471443e8ea186834ce6cd1b5ebe3a0bcc939'],
-            ['source_straight_03-base-00.js','7cbc7ce1fdaf7ac72f11f69326e6f59fbb83ccce'],
-            ['source_straight_03-height-00.js','4ed3ee6bba4ae7a5f24e412f46f1a5f3f2beb8cb'],
-            ['source_straight_04-base-00.js','fe3c98ea945567cd6c9405f10cb67a53723147f6'],
-            ['source_straight_04-height-00.js','7d9d74df7c1d58fcd527862e29a3666656576c4b'],
-            ['source_t_01-base-00.js','3fcfb0d68920d45dd4a946b4cdc7475442fe0c44'],
-            ['source_t_01-base-01.js','101258f6740f2c4e14a1d50d686ea043e84b68f0'],
-            ['source_t_01-height-00.js','c8a74a8f6cafcadbbbdb4636051748b30a08c769'],
-            ['source_t_01-height-01.js','266bb05146bc7c86fd34176f7e14980e50e88866'],
-            ['source_t_02-base-00.js','5eec53d26c727123e90965bfbe84e453c82dd1a8'],
-            ['source_t_02-base-01.js','4cc876579fde9165df8976fa108fde25337aa240'],
-            ['source_t_02-height-00.js','5ed3285cd361f88d2746f6a359e8114a793c2abe'],
-            ['source_t_02-height-01.js','1f93b6fb4c514da442537880844fbc5d8dd847bb'],
-            ['source_y_01-base-00.js','121476d214800b0b46157f9edeac7f2763bd6313'],
-            ['source_y_01-base-01.js','99fcea43f6e61547635167fa638edfcd026cde8b'],
-            ['source_y_01-base-02.js','65628cb2ad341d3fe3f69957afdc0d4b1fd4f0ad'],
-            ['source_y_01-height-00.js','e29ee94b80a0e552e23bae68d5c1d2d631758c36'],
-            ['source_y_01-height-01.js','ceaf7c2be934b7abe672b177f626aebf321b4af1']
-          ].map(([name,sha])=>({name,sha}));
-          await fs.mkdir('pom-validation/exact-blobs',{recursive:true});
-          const report=[];
-          for(const item of manifest){
-            const response=await fetch(`https://api.github.com/repos/EckZar/test_case/git/blobs/${item.sha}`,{headers:{Accept:'application/vnd.github+json',Authorization:`Bearer ${process.env.GITHUB_TOKEN}`}});
-            if(!response.ok){report.push({...item,status:response.status});continue;}
-            const result=await response.json();
-            const bytes=Buffer.from(result.content,'base64');
-            await fs.writeFile(`pom-validation/exact-blobs/${item.name}`,bytes);
-            report.push({...item,status:200,size:bytes.length});
-          }
-          await fs.writeFile('pom-validation/exact-blobs/report.json',JSON.stringify(report,null,2));
-          console.log(JSON.stringify(report,null,2));
-          NODE
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: source-seam-exact-blob-audit
-          path: pom-validation/exact-blobs/
-          retention-days: 3
+          set -euo pipefail
+          python - <<'PY'
+          import base64, json, os, urllib.request
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/EckZar/test_case/git/blobs/{os.environ['ARCHIVE_BLOB']}",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          with urllib.request.urlopen(req) as response:
+              payload = json.load(response)
+          data = base64.b64decode(payload["content"])
+          open('/tmp/source-seams-exact.zip', 'wb').write(data)
+          print(f"downloaded {len(data)} bytes")
+          PY
+          file /tmp/source-seams-exact.zip
+          unzip -t /tmp/source-seams-exact.zip
+          rm -rf /tmp/source-seams-exact
+          mkdir -p /tmp/source-seams-exact
+          unzip -q /tmp/source-seams-exact.zip -d /tmp/source-seams-exact
+          PAGE=$(find /tmp/source-seams-exact -path '*/shipmodule-pom-lab/seams.html' -print -quit)
+          test -n "$PAGE"
+          PATCH_ROOT=$(dirname "$(dirname "$PAGE")")
+          test -f "$PATCH_ROOT/shipmodule-pom-lab/seam-pack-fixture.js"
+          test -d "$PATCH_ROOT/shipmodule-pom-lab/seam-source-data"
+          rm -rf shipmodule-pom-lab/seam-source-data
+          cp -a "$PATCH_ROOT/shipmodule-pom-lab/." shipmodule-pom-lab/
+          if [ -d "$PATCH_ROOT/.github" ]; then cp -a "$PATCH_ROOT/.github/." .github/; fi
+          rm -rf shipmodule-pom-lab/source-seams tmp
+          test "$(find shipmodule-pom-lab/seam-source-data -type f -name '*.js' | wc -l)" -eq 29
+          node --check shipmodule-pom-lab/seams.js
+          node --check shipmodule-pom-lab/seam-pack-codec.js
+          node --check shipmodule-pom-lab/seam-pack-fixture.js
+          grep -q 'shipmodule-source-seam-pom-pack-v2' shipmodule-pom-lab/seam-pack-fixture.js
+          grep -q '9 ORIGINAL ASSETS' shipmodule-pom-lab/seams.html
+      - name: Commit exact-source stand
+        run: |
+          set -euo pipefail
+          git config user.name 'EckZar'
+          git config user.email '32589564+EckZar@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes to publish'
+            exit 0
+          fi
+          git commit -m 'feat(pom-lab): publish exact-source seam POM test stand'
+          git push origin HEAD:shipmodule-pom-reference-lab
