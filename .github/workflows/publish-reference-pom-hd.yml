@@ -1,45 +1,56 @@
-name: Publish HD reference POM pack
+name: Rebuild fixed HD reference POM pack
+
 on:
+  workflow_dispatch:
   push:
     branches: [source-seam-exact-publish-v5]
-    paths: ['.pom-staging/READY']
+    paths:
+      - 'shipmodule-pom-lab/tools/build_reference_pom_hd.py'
+      - '.github/workflows/publish-reference-pom-hd.yml'
+
 permissions:
   contents: write
+
+concurrency:
+  group: reference-pom-hd-source-seam-exact-publish-v5
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
+
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
+        with:
+          python-version: '3.12'
+
       - name: Install map builder
         run: python -m pip install --disable-pip-version-check numpy pillow pillow-avif-plugin scipy
-      - name: Reassemble staged source pack
+
+      - name: Rebuild macro-relief production maps
         shell: bash
         run: |
           set -euo pipefail
-          cat .pom-staging/chunk-*.b64 > /tmp/pom-stage.b64
-          base64 -d /tmp/pom-stage.b64 > /tmp/pom-stage.tar.gz
-          echo "80dad325915cd090ae027dea54664d15a5533216db7730e6a6e96275770329d5  /tmp/pom-stage.tar.gz" | sha256sum -c -
-          rm -rf .pom-staging/unpacked
-          mkdir -p .pom-staging/unpacked
-          tar -xzf /tmp/pom-stage.tar.gz -C .pom-staging/unpacked
-      - name: Generate native-resolution POM maps
-        run: python shipmodule-pom-lab/tools/build_reference_pom_hd.py .pom-staging/unpacked shipmodule-pom-lab/reference-pom-production
-      - name: Remove obsolete preview assets
-        run: rm -rf shipmodule-pom-lab/reference-pom-assets
-      - name: Commit generated pack
+          rm -rf /tmp/reference-pom-production
+          python shipmodule-pom-lab/tools/build_reference_pom_hd.py \
+            shipmodule-pom-lab/reference-pom-production \
+            /tmp/reference-pom-production
+          rm -rf shipmodule-pom-lab/reference-pom-production
+          mv /tmp/reference-pom-production shipmodule-pom-lab/reference-pom-production
+
+      - name: Commit regenerated pack
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .pom-staging
           git config user.name "EckZar"
           git config user.email "32589564+EckZar@users.noreply.github.com"
-          git add -A shipmodule-pom-lab .pom-staging || true
+          git add -A shipmodule-pom-lab/reference-pom-production
           if git diff --cached --quiet; then
             echo "No generated changes"
             exit 0
           fi
-          git commit -m "feat(pom-lab): publish full-resolution reference POM maps"
+          git commit -m "fix(pom-lab): rebuild smoothed macro-relief maps"
           git push origin HEAD:source-seam-exact-publish-v5
