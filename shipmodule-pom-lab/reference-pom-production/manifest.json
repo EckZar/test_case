@@ -1,12 +1,16 @@
 {
-  "schema": 2,
+  "schema": 3,
   "set": "reference-pom-production-hd",
-  "sourceEncoding": "full-resolution AVIF staging",
+  "profile": "macro-relief-v2",
+  "heightConvention": "WHITE_HIGH_BLACK_LOW_SIGNED_AROUND_NEUTRAL",
+  "neutralLevel": 0.56,
+  "cosmeticDetailPolicy": "scratches-rust-labels-flattened",
   "assets": [
     {
       "id": "ref-01",
       "width": 1024,
       "height": 1536,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-01/basecolor.png",
         "height": "ref-01/height.png",
@@ -19,6 +23,7 @@
       "id": "ref-02",
       "width": 1024,
       "height": 1536,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-02/basecolor.png",
         "height": "ref-02/height.png",
@@ -31,6 +36,7 @@
       "id": "ref-03",
       "width": 682,
       "height": 2048,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-03/basecolor.png",
         "height": "ref-03/height.png",
@@ -43,6 +49,7 @@
       "id": "ref-04",
       "width": 1024,
       "height": 1536,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-04/basecolor.png",
         "height": "ref-04/height.png",
@@ -55,6 +62,7 @@
       "id": "ref-05",
       "width": 682,
       "height": 2048,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-05/basecolor.png",
         "height": "ref-05/height.png",
@@ -67,6 +75,7 @@
       "id": "ref-06",
       "width": 685,
       "height": 2048,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-06/basecolor.png",
         "height": "ref-06/height.png",
@@ -79,6 +88,7 @@
       "id": "ref-07",
       "width": 1254,
       "height": 1254,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-07/basecolor.png",
         "height": "ref-07/height.png",
@@ -91,6 +101,7 @@
       "id": "ref-08",
       "width": 1254,
       "height": 1254,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-08/basecolor.png",
         "height": "ref-08/height.png",
@@ -103,6 +114,7 @@
       "id": "ref-09",
       "width": 1254,
       "height": 1254,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-09/basecolor.png",
         "height": "ref-09/height.png",
@@ -115,6 +127,7 @@
       "id": "ref-10",
       "width": 1254,
       "height": 1254,
+      "profile": "macro-relief-v2",
       "files": {
         "baseColor": "ref-10/basecolor.png",
         "height": "ref-10/height.png",
