@@ -10,7 +10,7 @@ const camera=new THREE.PerspectiveCamera(42,1,.05,100),controls=new OrbitControl
 const geometry=new THREE.PlaneGeometry(2.8,2.8);geometry.setAttribute('uv1',geometry.getAttribute('uv').clone());const mesh=new THREE.Mesh(geometry);scene.add(mesh);
 const loader=new THREE.TextureLoader();let current=null,flat=null,pom=null,dbgH=null,dbgN=null,dbgA=null,width=2,height=2,localAssets=[];
 function fail(e){const t=e?.message||String(e);state.errors.push(t);status.dataset.state='error';status.textContent='Ошибка: '+t;console.error(e)}
-function tune(t,srgb=false){t.colorSpace=srgb?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping;t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;return t}
+function tune(t,srgb=false){t.colorSpace=srgb?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping;t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;t.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());return t}
 function loadTex(url,srgb=false){return new Promise((res,rej)=>loader.load(url,t=>res(tune(t,srgb)),undefined,rej))}
 function solid(r,g,b){const t=new THREE.DataTexture(new Uint8Array([r,g,b,255]),1,1,THREE.RGBAFormat);t.needsUpdate=true;return t}
 const black=solid(0,0,0);
