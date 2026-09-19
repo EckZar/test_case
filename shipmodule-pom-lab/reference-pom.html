@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>ShipModule · Reference POM Decal Lab</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#e6edf5;background:#10151d}*{box-sizing:border-box}body{margin:0}.shell{height:100dvh;display:grid;grid-template-columns:340px minmax(0,1fr)}aside{padding:20px;overflow:auto;border-right:1px solid #314153;background:#151d28}h1{font-size:24px;line-height:1.15;margin:8px 0 12px}h2,summary{font-size:12px;letter-spacing:.03em;margin:20px 0 10px;color:#adc9e7}.eyebrow{color:#89b8e7;font:11px monospace;letter-spacing:.08em}.intro,.note{font-size:12px;line-height:1.55;color:#aebdce}.note{font-size:11px;color:#94a6bc}.control{display:grid;grid-template-columns:1fr auto;font-size:12px;margin:12px 0 0;gap:5px}input[type=range]{grid-column:1/-1;width:100%;accent-color:#86b7e8}output{font-family:monospace;color:#b2d5f8}select,button{font:12px system-ui;color:#edf4fb;border:1px solid #405673;background:#202e40;border-radius:6px;padding:8px;cursor:pointer}select{width:100%;grid-column:1/-1}.buttons{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:12px}button:hover{background:#2e425c}.check{display:flex;gap:8px;font-size:12px;margin-top:12px}.stats{font-size:11px;display:grid;grid-template-columns:1fr auto;gap:8px}.stats span:nth-child(even){font-family:monospace;color:#b2d5f8}.badge{padding:4px 7px;background:#2d473f;border-radius:4px;color:#c2e8d6;display:inline-block;font:11px monospace}#view{position:relative;min-width:0;min-height:0}canvas{display:block;width:100%;height:100%;touch-action:none}.tag{position:absolute;top:18px;max-width:44%;padding:8px 12px;border:1px solid #536b87;border-radius:6px;background:#111a27e8;font:11px monospace;pointer-events:none}.left{left:18px}.right{left:calc(50% + 18px)}.divider{position:absolute;left:50%;height:100%;width:1px;background:#71839b40;pointer-events:none}#status{position:absolute;bottom:16px;left:16px;right:16px;max-height:30%;overflow:auto;padding:11px 13px;border:1px solid #405571;border-radius:6px;background:#111a27e8;color:#c2d6ed;white-space:pre-wrap;font:12px/1.45 monospace}#status[data-state=error]{border-color:#bc6a65;color:#ffd0ca}#status[data-state=ready]{border-color:#648a7b}summary{cursor:pointer}@media(max-width:800px){.shell{height:auto;grid-template-columns:1fr}#view{height:72vh;min-height:480px}.tag{font-size:9px;padding:6px}}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+<main class="shell">
+<aside>
+<div class="eyebrow">SHIPMODULE / REFERENCE POM LAB</div>
+<h1>10 new<br>POM Decals</h1>
+<span class="badge">512² runtime maps · POM v4</span>
+<p class="intro">Слева обычный PBR/Normal, справа тот же decal через <code>PomDecalMaterial v4</code>. Height, Normal и Alpha реконструируются в браузере из выбранного референса.</p>
+<label class="control">Decal<select id="decal"></select></label>
+<label class="control">Отображение<select id="mode"><option value="pbr">BaseColor + PBR</option><option value="clay">Clay / relief</option><option value="height">Height debug</option><option value="normal">Normal debug</option><option value="alpha">Alpha debug</option></select></label>
+<label class="check"><input id="cutout" type="checkbox" checked> Маска внешнего контура</label>
+<h2>ВЫСТУПЫ И ВПАДИНЫ</h2>
+<label class="control">Height Scale <output id="heightOut">0.028</output><input id="height" type="range" min="0" max="0.15" step="0.001" value="0.028"></label>
+<label class="control">Neutral <output id="neutralLevelOut">0.56</output><input id="neutralLevel" type="range" min="0" max="1" step="0.01" value="0.56"></label>
+<label class="control">Raise <output id="raiseScaleOut">0.55</output><input id="raiseScale" type="range" min="0" max="3" step="0.01" value="0.55"></label>
+<label class="control">Sink <output id="sinkScaleOut">1.35</output><input id="sinkScale" type="range" min="0" max="3" step="0.01" value="1.35"></label>
+<label class="control">Wall softness, px <output id="wallSoftnessPxOut">1.00</output><input id="wallSoftnessPx" type="range" min="0" max="4" step="0.25" value="1"></label>
+<h2>КАЧЕСТВО</h2>
+<label class="control">Minimum Steps <output id="minOut">12</output><input id="minSteps" type="range" min="2" max="64" step="1" value="12"></label>
+<label class="control">Maximum Steps <output id="maxOut">96</output><input id="maxSteps" type="range" min="8" max="128" step="1" value="96"></label>
+<label class="control">Refinement <output id="refineOut">6</output><input id="refine" type="range" min="0" max="8" step="1" value="6"></label>
+<label class="check"><input id="stableGradients" type="checkbox" checked> Стабильная фильтрация карт</label>
+<details><summary>Дополнительные ограничения</summary>
+<label class="control">Max UV offset <output id="maxUvOffsetOut">0.28</output><input id="maxUvOffset" type="range" min="0.01" max="0.5" step="0.01" value="0.28"></label>
+<label class="control">Fade Start <output id="grazingFadeStartOut">0.08</output><input id="grazingFadeStart" type="range" min="0" max="0.3" step="0.01" value="0.08"></label>
+<label class="control">Fade End <output id="grazingFadeEndOut">0.22</output><input id="grazingFadeEnd" type="range" min="0.01" max="0.5" step="0.01" value="0.22"></label>
+<label class="control">Jitter <output id="jitterStrengthOut">0.00</output><input id="jitterStrength" type="range" min="0" max="1" step="0.05" value="0"></label>
+</details>
+<h2>КАМЕРА / СВЕТ</h2>
+<label class="control">Азимут света <output id="azOut">35°</output><input id="az" type="range" min="-80" max="80" step="1" value="35"></label>
+<label class="control">Высота света <output id="elOut">55°</output><input id="el" type="range" min="5" max="85" step="1" value="55"></label>
+<div class="buttons"><button id="front">Front</button><button id="oblique">3/4</button><button id="grazing">Grazing</button><button id="reset">Reset</button></div>
+<h2>ПРОВЕРКА</h2>
+<div class="stats"><span>Decal</span><span id="selected">—</span><span>Runtime maps</span><span>512 × 512</span><span>Shader</span><span id="shader">—</span><span>Relief + / −</span><span id="range">—</span><span>FPS</span><span id="fps">—</span></div>
+<p class="note">Это reconstruction-тест: глубина восстанавливается из 2D-референса, а не из исходной 3D-геометрии. Он предназначен для проверки поведения POM, grazing angles и настроек Raise/Sink.</p>
+</aside>
+<section id="view"><canvas id="canvas"></canvas><span class="tag left">NORMAL / PBR</span><span class="tag right">SHIPMODULE POM v4</span><span class="divider"></span><pre id="status" role="status">Загрузка POM стенда…</pre></section>
+</main>
+<script type="module">try{await import('./reference-pom.js');}catch(e){const s=document.getElementById('status');s.dataset.state='error';s.textContent='Не удалось запустить стенд: '+(e?.message||String(e));console.error(e);}</script>
+</body></html>
