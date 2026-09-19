@@ -15,8 +15,8 @@
 <aside>
 <div class="eyebrow">SHIPMODULE / REFERENCE POM LAB</div>
 <h1>10 new<br>POM Decals</h1>
-<span class="badge">512² runtime maps · POM v4</span>
-<p class="intro">Слева обычный PBR/Normal, справа тот же decal через <code>PomDecalMaterial v4</code>. Height, Normal и Alpha реконструируются в браузере из выбранного референса.</p>
+<span class="badge">GPU direct · POM v4 · no canvas readback</span>
+<p class="intro">Слева обычный PBR, справа тот же decal через <code>PomDecalMaterial v4</code>. Текстуры идут напрямую в WebGL; <code>getImageData()</code> и canvas-реконструкция отключены.</p>
 <label class="control">Decal<select id="decal"></select></label>
 <label class="control">Отображение<select id="mode"><option value="pbr">BaseColor + PBR</option><option value="clay">Clay / relief</option><option value="height">Height debug</option><option value="normal">Normal debug</option><option value="alpha">Alpha debug</option></select></label>
 <label class="check"><input id="cutout" type="checkbox" checked> Маска внешнего контура</label>
@@ -25,7 +25,7 @@
 <label class="control">Neutral <output id="neutralLevelOut">0.56</output><input id="neutralLevel" type="range" min="0" max="1" step="0.01" value="0.56"></label>
 <label class="control">Raise <output id="raiseScaleOut">0.55</output><input id="raiseScale" type="range" min="0" max="3" step="0.01" value="0.55"></label>
 <label class="control">Sink <output id="sinkScaleOut">1.35</output><input id="sinkScale" type="range" min="0" max="3" step="0.01" value="1.35"></label>
-<label class="control">Wall softness, px <output id="wallSoftnessPxOut">1.00</output><input id="wallSoftnessPx" type="range" min="0" max="4" step="0.25" value="1"></label>
+<label class="control">Wall softness (offline) <output id="wallSoftnessPxOut">—</output><input id="wallSoftnessPx" type="range" min="0" max="4" step="0.25" value="1" disabled></label>
 <h2>КАЧЕСТВО</h2>
 <label class="control">Minimum Steps <output id="minOut">12</output><input id="minSteps" type="range" min="2" max="64" step="1" value="12"></label>
 <label class="control">Maximum Steps <output id="maxOut">96</output><input id="maxSteps" type="range" min="8" max="128" step="1" value="96"></label>
@@ -42,10 +42,10 @@
 <label class="control">Высота света <output id="elOut">55°</output><input id="el" type="range" min="5" max="85" step="1" value="55"></label>
 <div class="buttons"><button id="front">Front</button><button id="oblique">3/4</button><button id="grazing">Grazing</button><button id="reset">Reset</button></div>
 <h2>ПРОВЕРКА</h2>
-<div class="stats"><span>Decal</span><span id="selected">—</span><span>Runtime maps</span><span>512 × 512</span><span>Shader</span><span id="shader">—</span><span>Relief + / −</span><span id="range">—</span><span>FPS</span><span id="fps">—</span></div>
-<p class="note">Это reconstruction-тест: глубина восстанавливается из 2D-референса, а не из исходной 3D-геометрии. Он предназначен для проверки поведения POM, grazing angles и настроек Raise/Sink.</p>
+<div class="stats"><span>Decal</span><span id="selected">—</span><span>Texture path</span><span>GPU direct</span><span>Shader</span><span id="shader">—</span><span>Relief + / −</span><span id="range">—</span><span>FPS</span><span id="fps">—</span></div>
+<p class="note">Это GPU-only тест POM без чтения пикселей canvas. В текущем аварийно-устойчивом варианте Height берётся напрямую из R-канала референса; следующий production map-pack заменит его на отдельные зафиксированные Height/Normal карты.</p>
 </aside>
 <section id="view"><canvas id="canvas"></canvas><span class="tag left">NORMAL / PBR</span><span class="tag right">SHIPMODULE POM v4</span><span class="divider"></span><pre id="status" role="status">Загрузка POM стенда…</pre></section>
 </main>
-<script type="module">try{await import('./reference-pom.js?v=cors3');}catch(e){const s=document.getElementById('status');s.dataset.state='error';s.textContent='Не удалось запустить стенд: '+(e?.message||String(e));console.error(e);}</script>
+<script type="module">try{await import('./reference-pom-gpu.js?v=gpu2');}catch(e){const s=document.getElementById('status');s.dataset.state='error';s.textContent='Не удалось запустить стенд: '+(e?.message||String(e));console.error(e);}</script>
 </body></html>
