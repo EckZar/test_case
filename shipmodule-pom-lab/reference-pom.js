@@ -20,12 +20,25 @@ function readParams(){const p=Object.fromEntries(Object.entries(ids).map(([k,id]
 function assignParams(p){for(const[k,v]of Object.entries(p)){if(ids[k])$(ids[k]).value=String(v);if(k==='stableGradients')$('stableGradients').checked=!!v;}}
 function updateOutputs(p){for(const[k,id]of Object.entries(outIds)){const n=p[k];$(id).textContent=['minSteps','maxSteps','refinementSteps'].includes(k)?String(Math.round(n)):k==='heightScale'?n.toFixed(3):n.toFixed(2);}}
 
-function loadImage(url){return new Promise((resolve,reject)=>{const im=new Image();im.decoding='async';im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Не удалось загрузить '+url));im.src=url+'?v=2';});}
+async function loadImage(url){
+  const target=new URL(url,location.href);target.searchParams.set('v','cors3');
+  try{
+    const res=await fetch(target.href,{mode:'cors',credentials:'omit',cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const blob=await res.blob();
+    if('createImageBitmap'in window)return await createImageBitmap(blob,{premultiplyAlpha:'none'});
+    const objectUrl=URL.createObjectURL(blob);
+    try{return await new Promise((resolve,reject)=>{const im=new Image();im.decoding='async';im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Не удалось декодировать '+url));im.src=objectUrl;});}
+    finally{URL.revokeObjectURL(objectUrl);}
+  }catch(fetchError){
+    return await new Promise((resolve,reject)=>{const im=new Image();im.crossOrigin='anonymous';im.decoding='async';im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Не удалось загрузить '+url+' (CORS): '+fetchError.message));im.src=target.href;});
+  }
+}
 function floodBlackBackground(data,w,h){const bg=new Uint8Array(w*h),q=new Int32Array(w*h),cand=new Uint8Array(w*h);let qs=0,qe=0;for(let i=0;i<w*h;i++){const o=i*4,r=data[o],g=data[o+1],b=data[o+2],a=data[o+3];cand[i]=(a<12||(Math.max(r,g,b)<18&&Math.max(r,g,b)-Math.min(r,g,b)<12))?1:0;}const add=i=>{if(cand[i]&&!bg[i]){bg[i]=1;q[qe++]=i;}};for(let x=0;x<w;x++){add(x);add((h-1)*w+x);}for(let y=0;y<h;y++){add(y*w);add(y*w+w-1);}while(qs<qe){const i=q[qs++],x=i%w,y=(i/w)|0;if(x) add(i-1);if(x<w-1)add(i+1);if(y)add(i-w);if(y<h-1)add(i+w);}return bg;}
 function reconstruct(image){
-  const c=document.createElement('canvas');c.width=c.height=SIZE;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.clearRect(0,0,SIZE,SIZE);const scale=Math.min(480/image.naturalWidth,480/image.naturalHeight);const w=Math.max(1,Math.round(image.naturalWidth*scale)),h=Math.max(1,Math.round(image.naturalHeight*scale)),x=((SIZE-w)/2)|0,y=((SIZE-h)/2)|0;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(image,x,y,w,h);const id=ctx.getImageData(0,0,SIZE,SIZE),rgba=new Uint8Array(id.data),alpha=new Uint8Array(COUNT),height=new Uint8Array(COUNT);let transparent=0;for(let i=0;i<COUNT;i++)if(rgba[i*4+3]<250)transparent++;const bg=transparent<COUNT*.01?floodBlackBackground(rgba,SIZE,SIZE):null;
+  const c=document.createElement('canvas');c.width=c.height=SIZE;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.clearRect(0,0,SIZE,SIZE);const scale=Math.min(480/(image.naturalWidth||image.width),480/(image.naturalHeight||image.height));const w=Math.max(1,Math.round((image.naturalWidth||image.width)*scale)),h=Math.max(1,Math.round((image.naturalHeight||image.height)*scale)),x=((SIZE-w)/2)|0,y=((SIZE-h)/2)|0;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(image,x,y,w,h);const id=ctx.getImageData(0,0,SIZE,SIZE),rgba=new Uint8Array(id.data),alpha=new Uint8Array(COUNT),height=new Uint8Array(COUNT);let transparent=0;for(let i=0;i<COUNT;i++)if(rgba[i*4+3]<250)transparent++;const bg=transparent<COUNT*.01?floodBlackBackground(rgba,SIZE,SIZE):null;
   for(let i=0;i<COUNT;i++){const o=i*4,r=rgba[o],g=rgba[o+1],b=rgba[o+2];let a=rgba[o+3];if(bg&&bg[i])a=0;alpha[i]=a;if(a<8){height[i]=Math.round(defaults.neutralLevel*255);rgba[o+3]=0;continue;}const l=(.2126*r+.7152*g+.0722*b)/255;const max=Math.max(r,g,b),min=Math.min(r,g,b);const chroma=(max-min)/255;let hh=.08+.88*Math.pow(l,.82);if(r>g*1.25&&r>b*1.4&&r>120)hh=Math.max(hh,.68);if(l<.16)hh=Math.min(hh,.22);hh+=Math.min(.04,chroma*.06);height[i]=Math.round(THREE.MathUtils.clamp(hh,0,1)*255);rgba[o+3]=a;}
-  return {rgba,alpha,height,sourceSize:[image.naturalWidth,image.naturalHeight],content:[w,h],offset:[x,y]};
+  return {rgba,alpha,height,sourceSize:[(image.naturalWidth||image.width),(image.naturalHeight||image.height)],content:[w,h],offset:[x,y]};
 }
 function rgbaFrom1(src){const b=new Uint8Array(COUNT*4);for(let i=0;i<COUNT;i++){const v=src[i],o=i*4;b[o]=b[o+1]=b[o+2]=v;b[o+3]=255;}return b;}
 function rgbaFrom3(src){const b=new Uint8Array(COUNT*4);for(let i=0;i<COUNT;i++){const o=i*4,j=i*3;b[o]=src[j];b[o+1]=src[j+1];b[o+2]=src[j+2];b[o+3]=255;}return b;}
