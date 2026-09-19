@@ -22,7 +22,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import base64, json, os, urllib.request
+          import base64, io, json, os, re, urllib.request, zipfile
           req = urllib.request.Request(
               f"https://api.github.com/repos/EckZar/test_case/git/blobs/{os.environ['ARCHIVE_BLOB']}",
               headers={
@@ -33,11 +33,38 @@ jobs:
           )
           with urllib.request.urlopen(req) as response:
               payload = json.load(response)
-          data = base64.b64decode(payload["content"])
-          open('/tmp/source-seams-exact.zip', 'wb').write(data)
-          print(f"downloaded {len(data)} bytes")
+          raw = base64.b64decode(payload["content"])
+          candidates = [raw]
+          for marker in (b'UEsDB', b'UEsBA'):
+              start = 0
+              while True:
+                  pos = raw.find(marker, start)
+                  if pos < 0:
+                      break
+                  text = re.sub(rb'\s+', b'', raw[pos:])
+                  text += b'=' * ((4 - len(text) % 4) % 4)
+                  try:
+                      candidates.append(base64.b64decode(text, validate=False))
+                  except Exception:
+                      pass
+                  start = pos + 1
+          archive = None
+          for candidate in candidates:
+              magic = candidate.find(b'PK\x03\x04')
+              if magic >= 0:
+                  candidate = candidate[magic:]
+              try:
+                  with zipfile.ZipFile(io.BytesIO(candidate)) as zf:
+                      if zf.testzip() is None and any(name.endswith('shipmodule-pom-lab/seams.html') for name in zf.namelist()):
+                          archive = candidate
+                          print(f"valid archive: {len(candidate)} bytes, {len(zf.namelist())} entries")
+                          break
+              except Exception:
+                  continue
+          if archive is None:
+              raise SystemExit('No valid exact-source patch archive found in staged blob')
+          open('/tmp/source-seams-exact.zip', 'wb').write(archive)
           PY
-          file /tmp/source-seams-exact.zip
           unzip -t /tmp/source-seams-exact.zip
           rm -rf /tmp/source-seams-exact
           mkdir -p /tmp/source-seams-exact
