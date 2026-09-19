@@ -47,5 +47,5 @@
 </aside>
 <section id="view"><canvas id="canvas"></canvas><span class="tag left">NORMAL / PBR</span><span class="tag right">SHIPMODULE POM v4</span><span class="divider"></span><pre id="status" role="status">Загрузка POM стенда…</pre></section>
 </main>
-<script type="module">try{await import('./reference-pom.js');}catch(e){const s=document.getElementById('status');s.dataset.state='error';s.textContent='Не удалось запустить стенд: '+(e?.message||String(e));console.error(e);}</script>
+<script type="module">try{await import('./reference-pom.js?v=cors3');}catch(e){const s=document.getElementById('status');s.dataset.state='error';s.textContent='Не удалось запустить стенд: '+(e?.message||String(e));console.error(e);}</script>
 </body></html>
