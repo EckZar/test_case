@@ -1,0 +1,28 @@
+name: Source Seam Staged Export
+on:
+  push:
+    branches: [shipmodule-pom-reference-lab]
+    paths: ['.github/workflows/source-seam-staged-export.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Export staged Git blobs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node shipmodule-pom-lab/tests/export-staged-parts.mjs
+          find pom-validation/staged-parts -type f -printf '%f %s bytes\n' | sort
+          sha256sum pom-validation/staged-parts/*
+          file pom-validation/staged-parts/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-seam-staged-parts
+          path: pom-validation/staged-parts/
+          retention-days: 3
