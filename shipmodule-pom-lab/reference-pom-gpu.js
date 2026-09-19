@@ -71,7 +71,7 @@ async function selectAsset(id){
 }
 function parameters(){if(!current||!pom)return;const p=readParams();updatePomDecalMaterial(pom,p);updateOutputs(p);state.parameters=p;state.bounds=getPomReliefBounds(p);$('shader').textContent='POM v4 GPU';$('range').textContent=`+${(state.bounds.top*p.heightScale).toFixed(4)} / ${(state.bounds.bottom*p.heightScale).toFixed(4)}`;}
 function scheduleParameters(){cancelAnimationFrame(pending);pending=requestAnimationFrame(()=>{parameters();render();});}
-function applyCutout(m,cut){if(!m)return;if(m.isShaderMaterial){if(m.uniforms.cutout)m.uniforms.cutout.value=cut?1:0;return;}m.transparent=cut;m.alphaTest=cut?.035:0;m.depthWrite=!cut;m.needsUpdate=true;}
+function applyCutout(m,cut){if(!m)return;if(m.isShaderMaterial){if(m.uniforms.cutout)m.uniforms.cutout.value=cut?1:0;return;}m.transparent=cut;m.alphaTest=cut ? 0.035 : 0;m.depthWrite=!cut;m.needsUpdate=true;}
 function displayMode(){
   if(!current||!flat||!pom)return;const mode=$('mode').value,cut=$('cutout').checked;for(const m of[flat,pom,heightDebug,normalDebug])applyCutout(m,cut);
   let left=flat,right=pom;
